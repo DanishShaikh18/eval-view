@@ -276,8 +276,8 @@ class DiffEngine:
 
         has_differences = has_tool_changes or has_output_change
 
-        if score_dropped:
-            # Score dropped significantly - REGRESSION
+        if score_dropped and has_differences:
+            # Score dropped AND output/tools changed - REGRESSION
             overall_severity = DiffStatus.REGRESSION
         elif has_tool_changes:
             # Tools changed - TOOLS_CHANGED (behavior shifted)
