@@ -567,16 +567,29 @@ pydantic>=2.0.0
     else:
         console.print("[yellow]⚠️  demo-agent/ already exists[/yellow]")
 
-    console.print("\n[blue]━━━ Quick Start (2 minutes) ━━━[/blue]")
-    console.print("\n[bold]1. Start the demo agent:[/bold]")
-    console.print("   [cyan]pip install fastapi uvicorn[/cyan]")
-    console.print("   [cyan]python demo-agent/agent.py[/cyan]")
-    console.print("\n[bold]2. In another terminal, set an API key (any one):[/bold]")
-    console.print("   [cyan]export ANTHROPIC_API_KEY='your-key'[/cyan]  [dim]# or OPENAI_API_KEY, GEMINI_API_KEY, XAI_API_KEY[/dim]")
-    console.print("\n[bold]3. Run tests:[/bold]")
-    console.print("   [cyan]evalview run[/cyan]")
-    console.print("\n[dim]The demo agent runs on http://localhost:8000[/dim]")
-    console.print("[dim]Edit tests/test-cases/example.yaml to add more tests[/dim]\n")
+    from evalview.cloud.auth import CloudAuth
+    logged_in = CloudAuth().is_logged_in()
+
+    snapshot_line = (
+        "   [cyan]evalview snapshot[/cyan]   [dim]← captures baseline + syncs to cloud[/dim]"
+        if logged_in else
+        "   [cyan]evalview snapshot[/cyan]"
+    )
+
+    console.print(Panel(
+        "[bold]1.[/bold] Start the demo agent\n"
+        "   [cyan]pip install fastapi uvicorn[/cyan]\n"
+        "   [cyan]python demo-agent/agent.py[/cyan]\n\n"
+        "[bold]2.[/bold] Set an API key\n"
+        "   [cyan]export OPENAI_API_KEY='sk-...'[/cyan]\n\n"
+        "[bold]3.[/bold] Capture a baseline\n"
+        f"{snapshot_line}\n\n"
+        "[bold]4.[/bold] Check for regressions anytime\n"
+        "   [cyan]evalview check[/cyan]\n\n"
+        "[dim]Edit tests/test-cases/example.yaml to test your own agent[/dim]",
+        title="Quick Start",
+        border_style="blue",
+    ))
 
 
 @main.command()
@@ -8470,8 +8483,27 @@ if (at) {
         return
 
     auth.save(access_token, refresh_token, user_id, email)
-    console.print(f"\n[green]✓ Logged in as {email}[/green]")
-    console.print("[dim]Baselines will sync to cloud automatically on snapshot/check.[/dim]\n")
+
+    has_tests = (Path("tests") / "test-cases").exists() and any(
+        (Path("tests") / "test-cases").glob("*.yaml")
+    )
+    has_golden = Path(".evalview") / "golden"
+
+    if has_tests and has_golden.exists() and any(has_golden.glob("*.golden.json")):
+        next_step = "  [cyan]evalview snapshot[/cyan]   push your existing baselines to cloud"
+    elif has_tests:
+        next_step = "  [cyan]evalview snapshot[/cyan]   capture a baseline and sync it to cloud"
+    else:
+        next_step = "  [cyan]evalview init[/cyan]       create your first test case"
+
+    console.print(Panel(
+        f"[green]✓ Logged in as {email}[/green]\n\n"
+        "Your golden baselines will now sync to cloud automatically.\n\n"
+        "[bold]Next step:[/bold]\n"
+        f"{next_step}",
+        title="EvalView Cloud",
+        border_style="green",
+    ))
 
 
 @main.command("logout")

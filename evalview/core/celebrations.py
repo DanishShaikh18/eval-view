@@ -184,17 +184,25 @@ class Celebrations:
     @staticmethod
     def no_tests_found() -> None:
         """Helpful message when no tests found."""
+        from evalview.cloud.auth import CloudAuth
+        logged_in = CloudAuth().is_logged_in()
+
+        if logged_in:
+            body = (
+                "No test cases found in [bold]tests/[/bold]\n\n"
+                "Run [cyan]evalview init[/cyan] to create your first test —\n"
+                "it will sync to your cloud account automatically."
+            )
+        else:
+            body = (
+                "No test cases found in [bold]tests/[/bold]\n\n"
+                "[bold]Get started:[/bold]\n"
+                "  [cyan]evalview init[/cyan]   scaffold a test for your agent\n"
+                "  [cyan]evalview demo[/cyan]   see a live 30-second example"
+            )
+
         console.print()
-        console.print(Panel(
-            "[yellow]🤷 No test cases found[/yellow]\n\n"
-            "I looked in tests/test-cases/ but didn't find any YAML files.\n\n"
-            "[bold]Let's fix that:[/bold]\n"
-            "  • Create a new project: [cyan]evalview init[/cyan]\n"
-            "  • Try the demo: [cyan]evalview demo[/cyan]\n"
-            "  • Or see docs: [cyan]evalview --help[/cyan]",
-            title="No Tests Found",
-            border_style="yellow"
-        ))
+        console.print(Panel(body, title="No Tests Found", border_style="yellow"))
         console.print()
 
     @staticmethod
