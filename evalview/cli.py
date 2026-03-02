@@ -287,19 +287,19 @@ def _detect_agent_endpoint() -> Optional[str]:
             url = f"http://localhost:{port}{path}"
             try:
                 r = httpx.get(url, timeout=1.0)
-                if r.status_code < 500:
+                if r.status_code not in (404, 405) and r.status_code < 500:
                     return url
             except Exception:
                 continue
             try:
                 r = httpx.post(url, json={"query": "ping"}, timeout=1.0)
-                if r.status_code < 500:
+                if r.status_code not in (404, 405) and r.status_code < 500:
                     return url
             except Exception:
                 continue
 
-    # Fall back to base URL of first open port
-    return f"http://localhost:{open_ports[0]}"
+    # Fall back to base URL of first open port (no path guessing)
+    return f"http://localhost:{open_ports[0]}/"
 
 
 def _detect_model() -> Optional[str]:
