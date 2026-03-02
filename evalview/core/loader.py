@@ -49,7 +49,7 @@ class TestCaseLoader:
         dir_path = Path(directory)
         test_cases = []
 
-        for file_path in dir_path.glob(pattern):
+        for file_path in dir_path.rglob(pattern):
             if file_path.is_file() and not _is_config_file(file_path):
                 test_cases.append(TestCaseLoader.load_from_file(file_path))
 
