@@ -475,13 +475,6 @@ class ConsoleReporter:
                     rationale = output_eval.rationale[:400] + "..." if len(output_eval.rationale) > 400 else output_eval.rationale
                     self.console.print(f"[dim]  {rationale}[/dim]")
 
-            # Test quality hints — shown when the test itself may be the problem
-            quality_hints = self._test_quality_hints(result)
-            if quality_hints:
-                self.console.print("\n[bold yellow]⚠ Test Quality[/bold yellow]")
-                for hint in quality_hints:
-                    self.console.print(f"[yellow]  💡 {hint}[/yellow]")
-
             # Show step-by-step flow
             if result.trace.steps:
                 self.console.print()
