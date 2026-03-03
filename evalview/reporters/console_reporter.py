@@ -22,10 +22,19 @@ class ConsoleReporter:
     """Generates formatted console output for evaluation results."""
 
     def __init__(self):
+        """Initialize the console reporter."""
         self.console = Console()
 
     def _format_value(self, value: Any, max_length: int = 60) -> str:
-        """Format a value for display, truncating if needed."""
+        """Format a value for display in the console.
+
+        Args:
+            value: Value to format.
+            max_length: Maximum length of the formatted string before truncation.
+
+        Returns:
+            A string representation of the value suitable for console display.
+        """
         if value is None:
             return "[dim]null[/dim]"
         if isinstance(value, dict):
@@ -81,12 +90,11 @@ class ConsoleReporter:
                 self.console.print(f"{indent}  [cyan]→ Fix:[/cyan] [dim]{rc.remediation}[/dim]")
 
     def print_step_timeline(self, steps: List[StepTrace], title: str = "Agent Flow") -> None:
-        """
-        Print a visual step-by-step timeline of agent execution.
+        """Print a visual step-by-step timeline of agent execution.
 
         Args:
-            steps: List of step traces from execution
-            title: Title for the timeline panel
+            steps: List of step traces from execution.
+            title: Title for the timeline panel.
         """
         if not steps:
             self.console.print("[dim]No steps captured[/dim]")
@@ -143,11 +151,10 @@ class ConsoleReporter:
         self.console.print()
 
     def print_step_table(self, steps: List[StepTrace]) -> None:
-        """
-        Print a compact table view of step metrics.
+        """Print a compact table view of step metrics.
 
         Args:
-            steps: List of step traces from execution
+            steps: List of step traces from execution.
         """
         if not steps:
             return
@@ -179,11 +186,10 @@ class ConsoleReporter:
         self.console.print()
 
     def print_summary(self, results: List[EvaluationResult]) -> None:
-        """
-        Print summary of evaluation results.
+        """Print a summary of evaluation results.
 
         Args:
-            results: List of evaluation results
+            results: List of evaluation results.
         """
         if not results:
             self.console.print("[yellow]No results to display[/yellow]")
@@ -485,7 +491,14 @@ class ConsoleReporter:
 
     @staticmethod
     def _test_quality_hints(result: "EvaluationResult") -> List[str]:
-        """Return suggestions when the test itself looks like the problem, not the agent."""
+        """Return suggestions when the test itself looks like the problem, not the agent.
+
+        Args:
+            result: Evaluation result to analyze.
+
+        Returns:
+            A list of human-readable suggestions for improving the test case.
+        """
         hints: List[str] = []
         query = (result.input_query or "").strip()
         output_eval = result.evaluations.output_quality
@@ -529,11 +542,10 @@ class ConsoleReporter:
         return hints
 
     def print_detailed(self, result: EvaluationResult) -> None:
-        """
-        Print detailed evaluation result.
+        """Print a detailed evaluation result.
 
         Args:
-            result: Single evaluation result
+            result: Evaluation result to display.
         """
         self.console.print(f"\n[bold cyan]Test Case: {result.test_case}[/bold cyan]")
         self.console.print(f"Score: {result.score:.1f}/100")
@@ -622,13 +634,12 @@ class ConsoleReporter:
         suite_name: Optional[str] = None,
         previous_results: Optional[List[EvaluationResult]] = None,
     ) -> None:
-        """
-        Print a compact, screenshot-friendly summary of evaluation results.
+        """Print a compact, screenshot-friendly summary of evaluation results.
 
         Args:
-            results: List of evaluation results
-            suite_name: Optional name for the test suite
-            previous_results: Optional previous run results for delta comparison
+            results: List of evaluation results.
+            suite_name: Optional name for the test suite.
+            previous_results: Optional previous run results for delta comparison.
         """
         if not results:
             self.console.print("[yellow]No results to display[/yellow]")
@@ -701,7 +712,14 @@ class ConsoleReporter:
         self.console.print()
 
     def _get_compact_failure_reason(self, result: EvaluationResult) -> str:
-        """Get a compact, one-line failure reason for display."""
+        """Get a compact, one-line failure reason for display.
+
+        Args:
+            result: Evaluation result to extract a primary failure reason from.
+
+        Returns:
+            A single-line string describing the most relevant failure reason.
+        """
         reasons = []
 
         # Check tool issues
@@ -745,7 +763,18 @@ class ConsoleReporter:
         current: List[EvaluationResult],
         previous: List[EvaluationResult],
     ) -> Dict[str, float]:
-        """Compute deltas between current and previous run."""
+        """Compute aggregate deltas between current and previous runs.
+
+        Args:
+            current: Current run results.
+            previous: Previous run results.
+
+        Returns:
+            Mapping of delta metric names to values. Keys may include:
+            - "tokens_delta": Percentage change in total tokens (if previous tokens > 0)
+            - "latency_delta": Absolute change in total latency in milliseconds
+            - "cost_delta": Absolute change in total cost in USD
+        """
         deltas = {}
 
         # Compute totals for current run
@@ -782,19 +811,18 @@ class ConsoleReporter:
         results: List[EvaluationResult],
         suite_name: Optional[str] = None,
     ) -> None:
-        """
-        Print a behavior coverage report.
+        """Print a behavior coverage report.
 
         Shows coverage across:
-        - Tasks: scenarios tested
-        - Tools: agent tools exercised
-        - Paths: multi-step workflows
-        - Eval dimensions: correctness, safety, cost, latency checks
+        - Tasks: Scenarios tested
+        - Tools: Agent tools exercised
+        - Paths: Multi-step workflows
+        - Eval dimensions: Correctness, safety, cost, latency checks
 
         Args:
-            test_cases: List of test case definitions
-            results: List of evaluation results
-            suite_name: Optional name for the test suite
+            test_cases: List of test case definitions.
+            results: List of evaluation results.
+            suite_name: Optional name for the test suite.
         """
         if not test_cases:
             self.console.print("[yellow]No test cases to analyze[/yellow]")
@@ -953,12 +981,11 @@ class ConsoleReporter:
         result: StatisticalEvaluationResult,
         show_individual_runs: bool = False,
     ) -> None:
-        """
-        Print a comprehensive statistical evaluation summary.
+        """Print a comprehensive statistical evaluation summary.
 
         Args:
-            result: Statistical evaluation result
-            show_individual_runs: Whether to show details of each run
+            result: Statistical evaluation result.
+            show_individual_runs: Whether to show details of each individual run.
         """
         # Header with pass/fail status
         status_icon = "✅" if result.passed else "❌"
@@ -1036,7 +1063,14 @@ class ConsoleReporter:
         unit: str = "",
         precision: int = 2,
     ) -> None:
-        """Print a formatted statistics table."""
+        """Print a formatted statistics table.
+
+        Args:
+            stats: Statistical metrics to render.
+            title: Table title.
+            unit: Unit suffix to display (e.g. "$", "ms", "pts").
+            precision: Decimal precision used for formatted values.
+        """
         self.console.print()
 
         table = Table(title=title, show_header=True, header_style="bold cyan")
@@ -1075,7 +1109,15 @@ class ConsoleReporter:
         self.console.print(table)
 
     def _get_variance_indicator(self, std_dev: float, mean: float) -> str:
-        """Get a visual indicator for variance level."""
+        """Get a visual indicator for variance level.
+
+        Args:
+            std_dev: Standard deviation for the distribution.
+            mean: Mean value for the distribution.
+
+        Returns:
+            A Rich markup string describing the variance level.
+        """
         if mean == 0:
             return ""
 
@@ -1092,7 +1134,11 @@ class ConsoleReporter:
             return "[red]█████ Very high variance[/red]"
 
     def _print_flakiness_panel(self, flakiness: FlakinessScore) -> None:
-        """Print the flakiness assessment panel."""
+        """Print the flakiness assessment panel.
+
+        Args:
+            flakiness: Flakiness score and associated metadata.
+        """
         self.console.print()
 
         # Color based on category
@@ -1124,7 +1170,11 @@ class ConsoleReporter:
         self.console.print(Panel(content, title="[bold]Flakiness Assessment[/bold]", border_style=color))
 
     def _print_individual_runs_table(self, results: List[EvaluationResult]) -> None:
-        """Print a table showing individual run results."""
+        """Print a table showing individual run results.
+
+        Args:
+            results: Per-run evaluation results to render.
+        """
         self.console.print()
 
         table = Table(title="Individual Runs", show_header=True, header_style="bold")
@@ -1154,11 +1204,10 @@ class ConsoleReporter:
         self,
         results: List[StatisticalEvaluationResult],
     ) -> None:
-        """
-        Print a comparison table of multiple statistical evaluations.
+        """Print a comparison table of multiple statistical evaluations.
 
         Args:
-            results: List of statistical evaluation results to compare
+            results: Statistical evaluation results to compare.
         """
         if not results:
             self.console.print("[yellow]No results to compare[/yellow]")
