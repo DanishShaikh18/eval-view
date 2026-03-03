@@ -13,7 +13,7 @@ logger = logging.getLogger(__name__)
 from importlib.metadata import version as _pkg_version, PackageNotFoundError
 from pathlib import Path
 from datetime import datetime
-from typing import Optional, List, Dict, Any, Tuple
+from typing import Optional, List, Dict, Any, Tuple, Set
 
 try:
     _EVALVIEW_VERSION = _pkg_version("evalview")
@@ -8849,25 +8849,52 @@ def _cloud_pull(store: "GoldenStore") -> None:
 def _escape_yaml_str(s: str) -> str:
     """Escape *s* so it is safe inside a YAML double-quoted scalar.
 
-    YAML double-quoted scalars recognise the same escape sequences as JSON:
-    backslash, double-quote, and the C0 control characters (\\n, \\r, \\t …).
-    We must escape ALL of them or the written file may be unparseable / silently
-    corrupt (e.g. a bare newline inside a quoted scalar breaks the YAML line
-    structure entirely).
+    YAML 1.2 §7.3.1 requires that all C0 control characters be escaped inside
+    double-quoted scalars.  Unescaped control characters make the file either
+    unparseable or silently corrupt (e.g. a bare newline breaks the line
+    structure; a null byte terminates many YAML parsers early).
 
-    Order matters: backslash must be replaced first to avoid double-escaping.
+    Strategy:
+      1. Escape backslash first — must be first to avoid double-escaping.
+      2. Escape double-quote.
+      3. Replace the named C0 escapes (\\n, \\r, \\t).
+      4. Replace remaining C0 controls (0x00–0x08, 0x0B–0x0C, 0x0E–0x1F)
+         with \\uXXXX — the universal YAML/JSON Unicode escape.
     """
-    return (
+    import re as _re
+    s = (
         s.replace("\\", "\\\\")
          .replace('"', '\\"')
          .replace("\n", "\\n")
          .replace("\r", "\\r")
          .replace("\t", "\\t")
     )
+    # Replace any remaining C0 controls with \uXXXX escape sequences.
+    return _re.sub(
+        r"[\x00-\x08\x0b\x0c\x0e-\x1f\x7f]",
+        lambda m: f"\\u{ord(m.group()):04x}",
+        s,
+    )
 
 
 def _extract_keywords_from_output(output: str, query: str) -> List[str]:
-    """Extract 2-3 meaningful keywords from agent output for contains assertions."""
+    """Extract up to 3 keywords from *output* to use as ``contains:`` assertions.
+
+    Priority order (most to least specific):
+      1. Numbers — concrete facts like "42" or "22.5" rarely appear by coincidence.
+      2. Proper nouns — capitalised words (≥4 chars) that are not common stop-words.
+      3. Fallback — any word of 5+ characters when neither source yields results.
+
+    At most 2 numbers and 3 total keywords are returned so the generated test
+    is strict enough to catch regressions without being brittle.
+
+    Args:
+        output: The raw text response from the agent.
+        query:  The original query (reserved for future relevance filtering).
+
+    Returns:
+        A list of 0–3 keyword strings extracted from *output*.
+    """
     if not output:
         return []
 
@@ -8891,7 +8918,7 @@ def _extract_keywords_from_output(output: str, query: str) -> List[str]:
     # Fallback: any long word from the output
     if not keywords:
         words = re.findall(r"\b[a-zA-Z]{5,}\b", output)
-        seen: set[str] = set()
+        seen: Set[str] = set()
         for w in words[:15]:
             if len(keywords) >= 2:
                 break
@@ -9105,7 +9132,7 @@ def capture(agent: Optional[str], port: int, output_dir: str) -> None:
 
         def _extract_agent_response(
             self, body: bytes
-        ) -> "tuple[str, List[str]]":
+        ) -> "Tuple[str, List[str]]":
             """Parse the agent's JSON response into (output_text, tool_names).
 
             Both fields default to empty/[] on any parse error so a bad agent

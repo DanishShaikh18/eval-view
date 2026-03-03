@@ -282,10 +282,11 @@ class ConsoleReporter:
                 elif tool_accuracy is not None and tool_accuracy < 0.8:
                     low_score_notes.append(
                         f"[dim]  {result.test_case}: score {result.score:.0f} — "
-                        f"tool accuracy {tool_accuracy*100:.0f}%[/dim]"
+                        f"tool accuracy {tool_accuracy*100:.0f}/100[/dim]"
                     )
 
         if low_score_notes:
+            self.console.print()
             self.console.print("[dim]Low scores:[/dim]")
             for note in low_score_notes:
                 self.console.print(note)
