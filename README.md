@@ -637,7 +637,7 @@ cp CLAUDE.md.example CLAUDE.md
 
 ### What you get
 
-7 tools Claude Code can call on your behalf:
+8 tools Claude Code can call on your behalf:
 
 **Agent regression testing:**
 
@@ -656,8 +656,31 @@ cp CLAUDE.md.example CLAUDE.md
 | `generate_skill_tests` | Pre-test | Auto-generate test cases from a SKILL.md |
 | `run_skill_test` | Test | Run Phase 1 (deterministic) + Phase 2 (rubric) evaluation |
 
+**Reporting:**
+
+| Tool | What it does |
+|------|-------------|
+| `generate_visual_report` | Generate a self-contained HTML report with traces, diffs, scores, and timelines |
+
+> **First time setting up?** The best test cases come from real traffic, not guesses.
+> Run `evalview capture --agent <your-url>` from the terminal first — it records your
+> agent's real behaviour as test YAMLs, then use `run_snapshot` above to lock in the baseline.
+
 ### How it works in practice
 
+**Starting fresh (best path — real traffic as tests):**
+```
+You: I have a new agent at localhost:8000/invoke, help me set up testing
+Claude: Run this in your terminal first to capture real interactions as tests:
+          evalview capture --agent http://localhost:8000/invoke
+        Point your app at localhost:8091 and use it normally, then Ctrl+C.
+        Once you have YAMLs in tests/test-cases/, come back and I'll snapshot them.
+
+You: Done — captured 5 interactions
+Claude: [run_snapshot] 📸 5 baselines captured — regression detection active.
+```
+
+**Day-to-day workflow:**
 ```
 You: Add a test for my weather agent
 Claude: [create_test] ✅ Created tests/weather-lookup.yaml
@@ -764,7 +787,7 @@ difficulty: medium                    # trivial | easy | medium | hard | expert
 | **Gradual Drift Detection** | OLS regression over 10-check window catches slow similarity decline that single-threshold checks miss | [Docs](#gradual-drift-detection) |
 | **Semantic Similarity** | `--semantic-diff` uses OpenAI embeddings to score outputs by meaning, not wording | [Docs](#semantic-similarity---semantic-diff) |
 | **Visual Reports** | `evalview inspect` — interactive HTML with traces, diffs, cost-per-query | [Docs](#visual-reports--claude-code-mcp) |
-| **Claude Code MCP** | 7 tools — run checks, generate tests, test skills inline | [Docs](#claude-code-integration-mcp) |
+| **Claude Code MCP** | 8 tools — run checks, generate tests, test skills, generate visual reports inline | [Docs](#claude-code-integration-mcp) |
 | **Streak Tracking** | Habit-forming celebrations for consecutive clean checks | [Docs](docs/GOLDEN_TRACES.md) |
 | **Multi-Reference Goldens** | Save up to 5 variants per test for non-deterministic agents | [Docs](docs/GOLDEN_TRACES.md) |
 | **Chat Mode** | AI assistant: `/run`, `/test`, `/compare` | [Docs](docs/CHAT_MODE.md) |
