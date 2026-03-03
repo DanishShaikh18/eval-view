@@ -127,12 +127,16 @@ def main(ctx):
     """EvalView — Proof that your agent still works.
 
     \b
+    New here? Start with:
+      capture --agent <url>   Record real traffic as tests  ← best first step
+      snapshot                Save as your regression baseline
+      check                   Catch regressions after every change
+
+    \b
     Check Your Agent:
-      capture                 Record real traffic as tests (recommended first step)
-      run                     Check agent health
+      run                     Run all tests with full evaluation
       run --diff              Compare against golden baseline
-      run --save-golden       Save passing results as baseline
-      demo                    See regression detection in action
+      demo                    See regression detection in action (~30 seconds)
       quickstart              Set up a working example in 2 minutes
 
     \b

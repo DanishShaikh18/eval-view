@@ -250,24 +250,35 @@ diff:
 pip install evalview
 ```
 
-### First Run
+### Step 1 — Capture real interactions as tests
 
 ```bash
-evalview demo          # Zero setup, no API key — see regression detection live (~30 seconds)
-evalview quickstart    # Set up a working example against your own agent in 2 minutes
+evalview capture --agent http://localhost:8000/invoke
+# Proxy starts on localhost:8091 — point your app there instead
+# Use your agent normally, then Ctrl+C when done
+# Tests are saved to tests/test-cases/ automatically
 ```
 
-### With LLM-as-Judge Scoring
+> **Why capture first?** Tests from real usage catch real regressions. Auto-generated tests from guessed queries score poorly and give you false confidence.
+
+### Step 2 — Save as your baseline
 
 ```bash
-export OPENAI_API_KEY='your-key'
-evalview run
+export OPENAI_API_KEY='your-key'   # for LLM-as-judge scoring
+evalview snapshot
 ```
 
-### Fully Local (no API key)
+### Step 3 — Catch regressions forever
 
 ```bash
-evalview run --judge-provider ollama --judge-model llama3.2
+evalview check   # run this after every change
+```
+
+### No agent yet? Try the demo
+
+```bash
+evalview demo       # Zero setup, no API key — see regression detection live (~30 seconds)
+evalview quickstart # Set up a working example in 2 minutes
 ```
 
 [Full getting started guide →](docs/GETTING_STARTED.md)
