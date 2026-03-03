@@ -6,7 +6,13 @@
   AI CI/CD, pytest for AI agents, SKILL.md validation, MCP contract testing,
   non-deterministic testing, LLM evaluation, agent regression detection,
   provider-agnostic LLM testing, OpenAI-compatible eval, DeepSeek testing,
-  evalview add templates, evalview init wizard, first agent test
+  evalview add templates, evalview init wizard, first agent test,
+  agentic AI testing, multi-agent testing, autonomous agent testing,
+  LLM CI/CD, LLM hallucination detection, agent reliability, agent degradation,
+  agent behavior testing, golden file testing Python, vibe coding regression,
+  behavior-driven testing AI, Anthropic Claude agent testing, GPT agent testing,
+  agentic workflow testing, agent quality assurance, test LLM agents Python,
+  detect prompt regression, AI agent observability alternative, open source eval framework
 -->
 
 # EvalView — The open-source testing framework for AI agents
@@ -50,6 +56,44 @@ Unlike observability platforms (LangSmith) that show you *what happened*, or eva
 - **Framework-native adapters** — LangGraph, CrewAI, OpenAI Assistants, Anthropic Claude, HuggingFace, Ollama, MCP
 - **CI/CD-ready** — GitHub Action, exit codes, PR comments, JSON output
 - **Free and open source** — Apache 2.0, no vendor lock-in, works fully offline with Ollama
+
+---
+
+## EvalView vs LangSmith, Braintrust & Promptfoo
+
+EvalView fills a gap that the major platforms don't cover. LangSmith answers "what did my agent do?" — observability and tracing. Braintrust answers "how good is my agent?" — evaluation scoring. Promptfoo answers "which prompt is better?" — prompt comparison. EvalView answers a different question: **"Did my agent break?"**
+
+|  | LangSmith | Braintrust | Promptfoo | **EvalView** |
+|---|:---:|:---:|:---:|:---:|
+| **Core question** | "What did my agent do?" | "How good is my agent?" | "Which prompt is better?" | **"Did my agent break?"** |
+| **Primary purpose** | Observability/tracing | Evaluation platform | Prompt testing | Agent regression testing |
+| Automatic regression detection | No | Manual | No | **Yes** |
+| Golden baseline diffing | No | No | No | **Yes** |
+| Works without API keys | No | No | Partial | **Yes** |
+| Free & open source | No | No | Yes | **Yes** |
+| Works fully offline (Ollama) | No | Partial | Partial | **Yes** |
+| Team baseline sync (cloud) | Paid | Paid | No | **Yes (free, opt-in)** |
+| Agent framework adapters | LangChain only | Generic | Generic | **LangGraph, CrewAI, OpenAI, Claude, HF, Ollama, MCP** |
+| Skills testing (SKILL.md) | No | No | No | **Yes** |
+| Statistical mode (pass@k) | No | No | No | **Yes** |
+| MCP contract testing | No | No | No | **Yes** |
+
+**Use observability tools to see what happened. Use EvalView to prove it didn't break.**
+
+---
+
+## Who Is EvalView For?
+
+EvalView is built for developers and teams shipping AI agents to production:
+
+- **LangGraph and CrewAI developers** — confidence that refactoring agent graphs doesn't silently change behavior
+- **Claude Code and Codex skill authors** — validate that automation workflows do exactly what they're supposed to, every time
+- **AI/ML engineers running CI/CD** — a deterministic pass/fail signal that blocks regressions before they reach production
+- **Teams building multi-agent and agentic AI systems** — catch cascading behavior changes before they reach downstream agents
+- **Developers using Ollama or local LLMs** — fully offline, zero API-key regression detection
+- **Anyone doing vibe coding or rapid iteration** — know instantly whether a prompt or model swap broke something
+
+If you run `evalview snapshot` today and `evalview check` after every change, you're using EvalView correctly.
 
 ---
 
@@ -200,42 +244,37 @@ diff:
 
 ## Quick Start
 
-1. **Install EvalView**
+### Installation
 
-    ```bash
-    pip install evalview
-    ```
+```bash
+pip install evalview
+```
 
-2. **Try the demo** (zero setup, no API key)
+### First Run
 
-    ```bash
-    evalview demo
-    ```
+```bash
+evalview demo          # Zero setup, no API key — see regression detection live (~30 seconds)
+evalview quickstart    # Set up a working example against your own agent in 2 minutes
+```
 
-3. **Set up a working example** in 2 minutes
+### With LLM-as-Judge Scoring
 
-    ```bash
-    evalview quickstart
-    ```
+```bash
+export OPENAI_API_KEY='your-key'
+evalview run
+```
 
-4. **Want LLM-as-judge scoring too?**
+### Fully Local (no API key)
 
-    ```bash
-    export OPENAI_API_KEY='your-key'
-    evalview run
-    ```
-
-5. **Prefer local/free evaluation?**
-
-    ```bash
-    evalview run --judge-provider ollama --judge-model llama3.2
-    ```
+```bash
+evalview run --judge-provider ollama --judge-model llama3.2
+```
 
 [Full getting started guide →](docs/GETTING_STARTED.md)
 
 ---
 
-## Forbidden Tool Contracts + HTML Trace Replay + LLM Judge Caching
+## Safety Contracts, Trace Replay & Judge Caching
 
 ### `forbidden_tools` — Safety Contracts in One Line
 
@@ -310,7 +349,7 @@ Cache is keyed on the full evaluation context (test name, query, output, and all
 
 ---
 
-## Provider-Agnostic Skill Tests + Setup Wizard + 15 Templates
+## Skills Testing, Setup Wizard & 15 Test Templates
 
 **Run skill tests against any LLM provider** — Anthropic, OpenAI, DeepSeek, Kimi, Moonshot, or any OpenAI-compatible endpoint:
 
@@ -382,7 +421,7 @@ Available patterns: `tool-not-called` · `wrong-tool-chosen` · `tool-error-hand
 
 ---
 
-## Visual Reports + Claude Code MCP
+## Visual Reports & Claude Code MCP
 
 **Beautiful HTML reports** — one command, auto-opens in browser:
 
@@ -404,36 +443,6 @@ cp CLAUDE.md.example CLAUDE.md
 8 MCP tools: `create_test`, `run_snapshot`, `run_check`, `list_tests`, `validate_skill`, `generate_skill_tests`, `run_skill_test`, `generate_visual_report`
 
 See [Claude Code Integration (MCP)](#claude-code-integration-mcp) below.
-
----
-
-## Why EvalView? (Comparison with Alternatives)
-
-EvalView fills a gap that observability and evaluation platforms don't cover:
-
-|  | LangSmith | Braintrust | Promptfoo | **EvalView** |
-|---|:---:|:---:|:---:|:---:|
-| **Core question** | "What did my agent do?" | "How good is my agent?" | "Which prompt is better?" | **"Did my agent break?"** |
-| **Primary purpose** | Observability/tracing | Evaluation platform | Prompt testing | Agent regression testing |
-| Automatic regression detection | No | Manual | No | **Yes** |
-| Golden baseline diffing | No | No | No | **Yes** |
-| Works without API keys | No | No | Partial | **Yes** |
-| Free & open source | No | No | Yes | **Yes** |
-| Works fully offline (Ollama) | No | Partial | Partial | **Yes** |
-| Team baseline sync (cloud) | Paid | Paid | No | **Yes (free, opt-in)** |
-| Agent framework adapters | LangChain only | Generic | Generic | **LangGraph, CrewAI, OpenAI, Claude, HF, Ollama, MCP** |
-| Skills testing (SKILL.md) | No | No | No | **Yes** |
-| Statistical mode (pass@k) | No | No | No | **Yes** |
-| MCP contract testing | No | No | No | **Yes** |
-
-**Use observability tools to see what happened. Use EvalView to prove it didn't break.**
-
-### Key differentiators:
-- **Automatic regression detection** — Know instantly when your agent breaks
-- **Golden baseline diffing** — Save known-good behavior, compare every change
-- **Works without API keys** — Deterministic scoring, no LLM-as-judge needed
-- **Free & open source** — No vendor lock-in, no SaaS pricing
-- **Works offline** — Use Ollama for fully local evaluation
 
 ---
 
@@ -746,7 +755,7 @@ difficulty: medium                    # trivial | easy | medium | hard | expert
 
 | Feature | Description | Docs |
 |---------|-------------|------|
-| **`forbidden_tools`** | Declare tools that must never be called — hard-fail on any violation, score 0, no partial credit | [Docs](#forbidden-tool-contracts--html-trace-replay--llm-judge-caching) |
+| **`forbidden_tools`** | Declare tools that must never be called — hard-fail on any violation, score 0, no partial credit | [Docs](#safety-contracts-trace-replay--judge-caching) |
 | **HTML Trace Replay** | Step-by-step replay of every LLM call and tool invocation — exact prompt, completion, tokens, params | [Docs](#html-trace-replay--full-forensic-debugging) |
 | **LLM Judge Caching** | Cache judge responses in statistical mode — ~80% fewer API calls, stored in `.evalview/.judge_cache.db` | [Docs](#llm-judge-caching--80-cost-reduction-in-statistical-mode) |
 | **Cloud Baseline Sync** | `evalview login` — golden baselines sync to cloud automatically after every snapshot; new teammates pull them before every check | [Docs](#evalview-cloud--team-baseline-sync) |
@@ -770,8 +779,8 @@ difficulty: medium                    # trivial | easy | medium | hard | expert
 | **MCP Contract Testing** | Detect when external MCP servers change their interface | [Docs](docs/MCP_CONTRACTS.md) |
 | **Skills Testing** | Validate and test Claude Code / Codex SKILL.md workflows | [Docs](docs/SKILLS_TESTING.md) |
 | **Provider-Agnostic Skill Tests** | Run skill tests against Anthropic, OpenAI, DeepSeek, or any OpenAI-compatible API | [Docs](docs/SKILLS_TESTING.md#provider-agnostic-api-keys) |
-| **Test Pattern Library** | 15 ready-made YAML patterns — copy to your project with `evalview add` | [Docs](#new-provider-agnostic-skill-tests--setup-wizard--15-templates) |
-| **Personalized Init Wizard** | `evalview init --wizard` — generates a config + first test tailored to your agent | [Docs](#new-provider-agnostic-skill-tests--setup-wizard--15-templates) |
+| **Test Pattern Library** | 15 ready-made YAML patterns — copy to your project with `evalview add` | [Docs](#skills-testing-setup-wizard--15-test-templates) |
+| **Personalized Init Wizard** | `evalview init --wizard` — generates a config + first test tailored to your agent | [Docs](#skills-testing-setup-wizard--15-test-templates) |
 | **Pytest Plugin** | `evalview_check` fixture for regression assertions inside standard pytest suites | [Docs](#pytest-plugin) |
 | **Programmatic API** | `run_single_test` / `check_single_test` for notebook and custom CI integration | [Docs](#programmatic-api) |
 
@@ -941,6 +950,33 @@ evalview skill test tests.yaml --agent langgraph
 **Coming:** Agent Teams trace analysis • Multi-turn conversations • Grounded hallucination detection • Error compounding metrics • Container isolation
 
 [Vote on features →](https://github.com/hidai25/eval-view/discussions)
+
+---
+
+## Frequently Asked Questions
+
+**Does EvalView require an API key?**
+No. The core regression detection — tool call diffing, sequence scoring, golden baseline comparison — is fully deterministic and works without any API key. An `OPENAI_API_KEY` is only needed if you want LLM-as-judge output quality scoring (`evalview run`) or semantic diff (`--semantic-diff`). `evalview snapshot` and `evalview check` are always free.
+
+**How is EvalView different from LangSmith?**
+LangSmith is an observability platform: it records what your agent did and lets you inspect traces. EvalView is a regression testing framework: it saves a golden baseline and tells you when your agent's behavior deviates from it. They answer different questions. Many teams use both — LangSmith to understand production behavior, EvalView to gate changes in CI.
+
+**My agent is non-deterministic. How do I handle that?**
+Use multi-reference goldens: run `evalview snapshot --variant v1` and `evalview snapshot --variant v2` to save multiple acceptable behaviors (up to 5). `evalview check` compares against all variants and passes if any match. This is designed specifically for LLM-based agents with natural variation.
+
+**Can I run EvalView in GitHub Actions / CI?**
+Yes — use `evalview check --fail-on REGRESSION` to exit with code 1 on regressions (blocking CI), and `--json` for structured output. See [CI/CD Integration](#cicd-integration).
+
+**How do I update a baseline after an intentional change?**
+Just run `evalview snapshot` again. It overwrites the existing baseline with the current behavior. Your streak continues.
+
+**Does EvalView work with my framework?**
+If your agent exposes an HTTP API, it works. Native adapters exist for LangGraph, CrewAI, OpenAI Assistants, Anthropic Claude, HuggingFace, Ollama, and MCP servers. See [Supported Agents & Frameworks](#supported-agents--frameworks).
+
+**Is EvalView free?**
+Yes. EvalView is Apache 2.0 open source. Cloud baseline sync (`evalview login`) is also free. There is no paid tier.
+
+[Full FAQ →](docs/FAQ.md)
 
 ---
 
