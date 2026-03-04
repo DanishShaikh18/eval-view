@@ -38,6 +38,12 @@ pip install evalview && evalview demo   # Uses your configured API key
   <a href="https://opensource.org/licenses/Apache-2.0"><img src="https://img.shields.io/badge/License-Apache_2.0-blue.svg" alt="License"></a>
 </p>
 
+<p align="center">
+  <img src="docs/report-screenshot.png" alt="EvalView HTML Report — 100% pass rate, 92.5 avg score, cost and latency per test" width="860">
+  <br>
+  <sub>Auto-generated HTML report after every run — pass rate, quality scores, cost per query, latency, and full execution traces</sub>
+</p>
+
 ---
 
 ## What is EvalView?
@@ -433,6 +439,12 @@ Available patterns: `tool-not-called` · `wrong-tool-chosen` · `tool-error-hand
 **Every `evalview run` automatically opens an interactive HTML report in your browser.** No flag needed.
 
 The report includes tabbed **Overview** (KPI cards, score charts, cost-per-query table), **Execution Trace** (Mermaid sequence diagrams per test with full query/response), **Diffs** (golden vs actual with similarity scores), and **Timeline** (per-step latencies). Glassmorphism dark theme, fully self-contained HTML — safe to attach to PRs or Slack.
+
+<p align="center">
+  <img src="docs/trace-screenshot.png" alt="EvalView Execution Trace — Mermaid sequence diagram showing tool calls, parameters, and response" width="860">
+  <br>
+  <sub>Execution Trace tab — sequence diagram showing every tool call, parameters, and the full agent response</sub>
+</p>
 
 ```bash
 evalview run                              # Runs tests and opens report automatically

@@ -90,7 +90,7 @@ def _safe_mermaid(s: str) -> str:
     """Strip everything except safe alphanumeric + basic punctuation for Mermaid labels."""
     import re
     s = s.replace("\n", " ").replace("\r", "")
-    s = re.sub(r'[^\w\s\.\-_/]', '', s)
+    s = re.sub(r'[^\w\s\.\-_/=:,]', '', s)
     s = s[:28].strip()
     return (s + '...') if len(s) == 28 else s or '...'
 
