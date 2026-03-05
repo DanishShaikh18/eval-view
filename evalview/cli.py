@@ -7327,11 +7327,81 @@ def _display_check_results(
 
                     console.print(f"{severity_icon}: {name}")
                     console.print(f"    {diff.summary()}")
+                    quoted = f'"{name}"' if " " in name else name
+                    console.print(f"    [dim]→ evalview replay {quoted}[/dim]")
                     console.print()
 
             # Show guidance
             if analysis["has_regressions"]:
                 Celebrations.regression_guidance("See details above")
+
+
+def _print_trajectory_diff(golden: Any, result: Any) -> None:
+    """Print a side-by-side terminal trajectory comparison (golden vs actual)."""
+    from rich.table import Table
+    from rich.text import Text
+
+    golden_steps: List[Any] = []
+    actual_steps: List[Any] = []
+    try:
+        golden_steps = golden.trace.steps or []
+    except AttributeError:
+        pass
+    try:
+        actual_steps = result.trace.steps or []
+    except AttributeError:
+        pass
+
+    if not golden_steps and not actual_steps:
+        console.print("[dim]No tool steps in either trace — both are direct responses.[/dim]\n")
+        return
+
+    max_steps = max(len(golden_steps), len(actual_steps))
+
+    table = Table(
+        title="Trajectory Diff",
+        show_header=True,
+        header_style="bold",
+        show_lines=True,
+    )
+    table.add_column("#", style="dim", width=3)
+    table.add_column("Baseline", min_width=30)
+    table.add_column("Current", min_width=30)
+    table.add_column("", justify="center", width=3)
+
+    for i in range(max_steps):
+        g = golden_steps[i] if i < len(golden_steps) else None
+        a = actual_steps[i] if i < len(actual_steps) else None
+
+        g_name = (getattr(g, "tool_name", None) or getattr(g, "step_name", "?")) if g else "—"
+        a_name = (getattr(a, "tool_name", None) or getattr(a, "step_name", "?")) if a else "—"
+
+        match = g_name == a_name
+        match_str = "[green]✓[/green]" if match else "[red]✗[/red]"
+
+        if match:
+            g_style, a_style = "cyan", "cyan"
+        elif a_name == "—":
+            g_style, a_style = "cyan", "red"   # step was dropped
+        elif g_name == "—":
+            g_style, a_style = "dim", "yellow"  # new step added
+        else:
+            g_style, a_style = "cyan", "yellow"  # step changed
+
+        table.add_row(str(i + 1), Text(g_name, style=g_style), Text(a_name, style=a_style), match_str)
+
+    console.print(table)
+    console.print()
+
+    golden_seq = [getattr(s, "tool_name", None) or getattr(s, "step_name", "?") for s in golden_steps]
+    actual_seq = [getattr(s, "tool_name", None) or getattr(s, "step_name", "?") for s in actual_steps]
+
+    if golden_seq == actual_seq:
+        console.print("[green]Tool sequence: identical[/green]\n")
+    else:
+        console.print("[yellow]Tool sequence changed:[/yellow]")
+        console.print(f"  Baseline: {' → '.join(golden_seq) or '(none)'}")
+        console.print(f"  Current:  {' → '.join(actual_seq) or '(none)'}\n")
 
 
 def _compute_check_exit_code(
@@ -7471,6 +7541,92 @@ def check(test_path: str, test: str, json_output: bool, fail_on: str, strict: bo
     # Compute and exit with code
     exit_code = _compute_check_exit_code(diffs, fail_on, strict)
     sys.exit(exit_code)
+
+
+@main.command("replay")
+@click.argument("test_name")
+@click.option("--test-path", "test_path", default="tests", type=click.Path(exists=True), help="Directory containing tests")
+@click.option("--no-browser", is_flag=True, help="Don't auto-open the HTML report")
+@track_command("replay")
+def replay(test_name: str, test_path: str, no_browser: bool) -> None:
+    """Replay a test and show full trajectory diff vs baseline.
+
+    Shows step-by-step what your agent did vs. the saved baseline.
+    Opens an HTML report with side-by-side sequence diagrams.
+
+    \b
+    Examples:
+        evalview replay my-test
+        evalview replay my-test --no-browser
+        evalview replay my-test --test-path ./my-tests
+    """
+    from evalview.core.golden import GoldenStore
+    from evalview.visualization import generate_visual_report
+
+    store = GoldenStore()
+    _cloud_pull(store)
+
+    golden_variants = store.load_all_golden_variants(test_name)
+    if not golden_variants:
+        console.print(f"\n[red]❌ No baseline found for '{test_name}'[/red]")
+        quoted = f'"{test_name}"' if " " in test_name else test_name
+        console.print(f"[dim]Run: evalview snapshot --test {quoted}[/dim]\n")
+        sys.exit(1)
+
+    loader = TestCaseLoader()
+    try:
+        test_cases = loader.load_from_directory(Path(test_path))
+    except Exception as e:
+        console.print(f"\n[red]❌ Failed to load test cases: {e}[/red]\n")
+        sys.exit(1)
+
+    matching = [tc for tc in test_cases if tc.name == test_name]
+    if not matching:
+        console.print(f"\n[red]❌ No test case found with name: {test_name}[/red]")
+        console.print(f"[dim]Available: {', '.join(tc.name for tc in test_cases) or 'none'}[/dim]\n")
+        sys.exit(1)
+
+    config = _load_config_if_exists()
+
+    console.print(f"\n[cyan]◈ Replaying '{test_name}'...[/cyan]\n")
+
+    diffs, results, _ = _execute_check_tests([matching[0]], config, json_output=False)
+
+    if not results:
+        console.print("[red]❌ Test execution failed — check your agent is running[/red]\n")
+        sys.exit(1)
+
+    result = results[0]
+    golden = golden_variants[0]  # Primary baseline
+
+    # Terminal: side-by-side step comparison
+    _print_trajectory_diff(golden, result)
+
+    # Diff summary
+    if diffs:
+        _, diff = diffs[0]
+        from evalview.core.diff import DiffStatus
+        status_display = {
+            DiffStatus.PASSED: "[green]PASSED[/green]",
+            DiffStatus.TOOLS_CHANGED: "[yellow]TOOLS_CHANGED[/yellow]",
+            DiffStatus.OUTPUT_CHANGED: "[dim]OUTPUT_CHANGED[/dim]",
+            DiffStatus.REGRESSION: "[red]REGRESSION[/red]",
+        }.get(diff.overall_severity, str(diff.overall_severity))
+        console.print(f"Status: {status_display}  |  {diff.summary()}\n")
+
+    # Generate HTML report with side-by-side Mermaid trajectories
+    golden_traces_dict = {test_name: golden}
+    diff_list = [d for _, d in diffs]
+
+    path = generate_visual_report(
+        results=results,
+        diffs=diff_list,
+        golden_traces=golden_traces_dict,
+        auto_open=not no_browser,
+        title=f"Replay: {test_name}",
+    )
+
+    console.print(f"[green]◈ Report:[/green] {path}\n")
 
 
 # ============================================================================

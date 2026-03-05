@@ -27,14 +27,8 @@ if TYPE_CHECKING:
 
 # ── Mermaid helpers ────────────────────────────────────────────────────────────
 
-def _mermaid_trace(result: "EvaluationResult") -> str:
-    """Convert an ExecutionTrace into a Mermaid sequence diagram."""
-    steps = []
-    try:
-        steps = result.trace.steps or []
-    except AttributeError:
-        pass
-
+def _mermaid_from_steps(steps: List[Any], query: str = "", output: str = "") -> str:
+    """Core Mermaid sequence diagram builder from a steps list."""
     if not steps:
         return "sequenceDiagram\n    Note over Agent: Direct response — no tools used"
 
@@ -51,10 +45,8 @@ def _mermaid_trace(result: "EvaluationResult") -> str:
             short = (tool[:31] + "…") if len(tool) > 32 else tool
             lines.append(f"    participant {alias} as {short}")
 
-    # Input
-    query: str = str(getattr(result, "input_query", "") or "")
-    short_query = (query[:40] + "…") if len(query) > 40 else query
-    lines.append(f"    User->>Agent: {_safe_mermaid(short_query)}")
+    short_query = _safe_mermaid((query[:40] + "…") if len(query) > 40 else query) if query else "..."
+    lines.append(f"    User->>Agent: {short_query}")
 
     for step in steps:
         tool = str(getattr(step, "tool_name", None) or getattr(step, "step_name", None) or "unknown")
@@ -70,11 +62,22 @@ def _mermaid_trace(result: "EvaluationResult") -> str:
         out_str = str(out)[:30] if out is not None else "ok"
         lines.append(f"    {alias}-->Agent: {_safe_mermaid(out_str)}")
 
-    output = getattr(result, "actual_output", "") or ""
-    short_out = (output[:40] + "…") if len(output) > 40 else output
-    lines.append(f"    Agent-->>User: {_safe_mermaid(short_out)}")
+    short_out = _safe_mermaid((output[:40] + "…") if len(output) > 40 else output) if output else "..."
+    lines.append(f"    Agent-->>User: {short_out}")
 
     return "\n".join(lines)
+
+
+def _mermaid_trace(result: "EvaluationResult") -> str:
+    """Convert an EvaluationResult into a Mermaid sequence diagram."""
+    steps = []
+    try:
+        steps = result.trace.steps or []
+    except AttributeError:
+        pass
+    query: str = str(getattr(result, "input_query", "") or "")
+    output: str = str(getattr(result, "actual_output", "") or "")
+    return _mermaid_from_steps(steps, query, output)
 
 
 def _strip_markdown(text: str) -> str:
@@ -126,7 +129,11 @@ def _kpis(results: List["EvaluationResult"]) -> Dict[str, Any]:
 
 # ── Diff helpers ───────────────────────────────────────────────────────────────
 
-def _diff_rows(diffs: List["TraceDiff"]) -> List[Dict[str, Any]]:
+def _diff_rows(
+    diffs: List["TraceDiff"],
+    golden_traces: Optional[Dict[str, Any]] = None,
+    actual_results: Optional[Dict[str, Any]] = None,
+) -> List[Dict[str, Any]]:
     rows = []
     for d in diffs:
         status = str(getattr(d, "overall_severity", "passed")).lower().replace("diffstatus.", "")
@@ -138,8 +145,23 @@ def _diff_rows(diffs: List["TraceDiff"]) -> List[Dict[str, Any]]:
         actual_out = getattr(output_diff, "actual_preview", "") if output_diff else ""
         diff_lines = getattr(output_diff, "diff_lines", []) if output_diff else []
         score_delta = getattr(d, "score_diff", 0.0) or 0.0
+        test_name = getattr(d, "test_name", "")
+
+        # Generate side-by-side trajectory diagrams when trace data is available
+        golden_diagram = ""
+        actual_diagram = ""
+        if golden_traces and test_name in golden_traces:
+            gt = golden_traces[test_name]
+            try:
+                gt_steps = gt.trace.steps or []
+            except AttributeError:
+                gt_steps = []
+            golden_diagram = _mermaid_from_steps(gt_steps)
+        if actual_results and test_name in actual_results:
+            actual_diagram = _mermaid_trace(actual_results[test_name])
+
         rows.append({
-            "name": d.test_name,
+            "name": test_name,
             "status": status,
             "score_delta": round(score_delta, 1),
             "similarity": similarity,
@@ -148,6 +170,8 @@ def _diff_rows(diffs: List["TraceDiff"]) -> List[Dict[str, Any]]:
             "golden_out": golden_out[:600],
             "actual_out": actual_out[:600],
             "diff_lines": diff_lines[:50],
+            "golden_diagram": golden_diagram,
+            "actual_diagram": actual_diagram,
         })
     return rows
 
@@ -161,9 +185,12 @@ def _timeline_data(results: List["EvaluationResult"]) -> List[Dict[str, Any]]:
             steps = r.trace.steps or []
             for step in steps:
                 lat = getattr(step.metrics, "latency", 0) if hasattr(step, "metrics") else 0
+                tool = getattr(step, "tool_name", "unknown")[:20]
+                test = r.test_case[:15]
                 rows.append({
-                    "test": r.test_case[:20],
-                    "tool": getattr(step, "tool_name", "unknown")[:20],
+                    "test": test,
+                    "tool": tool,
+                    "label": f"{test} \u203a {tool}",
                     "latency": round(lat, 1),
                     "success": getattr(step, "success", True),
                 })
@@ -183,6 +210,7 @@ def generate_visual_report(
     notes: Optional[str] = None,
     compare_results: Optional[List[List["EvaluationResult"]]] = None,
     compare_labels: Optional[List[str]] = None,
+    golden_traces: Optional[Dict[str, Any]] = None,
 ) -> str:
     """Generate a self-contained visual HTML report.
 
@@ -193,6 +221,8 @@ def generate_visual_report(
         auto_open: If True, open the report in the default browser.
         title: Report title shown in the header.
         notes: Optional free-text note shown in the header.
+        golden_traces: Optional dict mapping test name to GoldenTrace. When provided,
+            the Diffs tab renders side-by-side baseline vs. current Mermaid diagrams.
 
     Returns:
         Absolute path to the generated HTML file.
@@ -226,7 +256,8 @@ def generate_visual_report(
             "query": getattr(r, "input_query", "") or "",
             "output": _strip_markdown(getattr(r, "actual_output", "") or ""),
         })
-    diff_rows = _diff_rows(diffs or [])
+    actual_results_dict = {r.test_case: r for r in results}
+    diff_rows = _diff_rows(diffs or [], golden_traces, actual_results_dict)
     timeline = _timeline_data(results)
 
     # Build comparison data if multiple runs provided
@@ -486,6 +517,9 @@ body::after{width:400px;height:400px;background:rgba(34,211,165,.07);bottom:-100
 /* Compare table */
 table td,table th{transition:background .15s}
 table tr:hover td{background:rgba(255,255,255,.02)}
+/* Trajectory grid — side-by-side Mermaid in Diffs tab */
+.traj-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:16px;padding-top:16px;border-top:1px solid var(--border)}
+.traj-col .col-title{padding-bottom:10px}
 /* Scrollbar */
 ::-webkit-scrollbar{width:4px;height:4px}
 ::-webkit-scrollbar-track{background:transparent}
@@ -682,6 +716,18 @@ table tr:hover td{background:rgba(255,255,255,.02)}
             {% endif %}
           </div>
         </div>
+        {% if d.golden_diagram or d.actual_diagram %}
+        <div class="traj-grid">
+          <div class="traj-col">
+            <div class="col-title">Baseline Trajectory</div>
+            <div class="mermaid-box" style="min-height:140px"><div class="mermaid">{{ d.golden_diagram or "sequenceDiagram\n    Note over Agent: No trace data" }}</div></div>
+          </div>
+          <div class="traj-col">
+            <div class="col-title">Current Trajectory</div>
+            <div class="mermaid-box" style="min-height:140px"><div class="mermaid">{{ d.actual_diagram or "sequenceDiagram\n    Note over Agent: No trace data" }}</div></div>
+          </div>
+        </div>
+        {% endif %}
       </div>
       {% endfor %}
     {% else %}
@@ -692,17 +738,11 @@ table tr:hover td{background:rgba(255,255,255,.02)}
   <!-- TIMELINE -->
   <div id="p-timeline" class="panel">
     {% if timeline %}
-      {% set mx = namespace(v=1) %}
-      {% for row in timeline %}{% if row.latency > mx.v %}{% set mx.v = row.latency %}{% endif %}{% endfor %}
       <div class="card">
         <div class="card-title">Step Latencies</div>
-        {% for row in timeline %}
-        <div class="tl-row">
-          <div class="tl-label" title="{{ row.test }} › {{ row.tool }}">{{ row.test }} › {{ row.tool }}</div>
-          <div class="tl-track"><div class="tl-fill {% if row.success %}ok{% else %}err{% endif %}" style="width:{{ [(row.latency / mx.v * 100)|round|int, 2]|max }}%"></div></div>
-          <div class="tl-ms">{{ row.latency }}ms</div>
+        <div style="position:relative;height:{{ [timeline|length * 38 + 80, 200]|max }}px">
+          <canvas id="tlChart"></canvas>
         </div>
-        {% endfor %}
       </div>
     {% else %}
       <div class="empty"><span class="empty-icon">⏱</span>No step timing data</div>
@@ -811,6 +851,29 @@ function tog(id,head){
         x:{grid:{display:false},ticks:{color:tc,font:{size:11}},border:{display:false}}
       },
       plugins:{legend:{display:false},tooltip:{callbacks:{label:ctx=>` Score: ${ctx.raw}/100`}}}}
+  });
+})();
+{% endif %}
+
+{% if timeline %}
+(function(){
+  const tl={{ timeline|tojson }};
+  if(!tl.length) return;
+  const labels=tl.map(r=>r.label||(r.test+' \u203a '+r.tool));
+  const vals=tl.map(r=>r.latency||0);
+  const colors=tl.map(r=>r.success?'rgba(124,149,255,.65)':'rgba(255,107,138,.65)');
+  const borders=tl.map(r=>r.success?'rgba(124,149,255,.9)':'rgba(255,107,138,.9)');
+  new Chart(document.getElementById('tlChart'),{
+    type:'bar',
+    data:{labels,datasets:[{label:'ms',data:vals,backgroundColor:colors,borderColor:borders,borderWidth:1,borderRadius:4,borderSkipped:false}]},
+    options:{
+      indexAxis:'y',responsive:true,maintainAspectRatio:false,
+      scales:{
+        x:{grid:{color:'rgba(255,255,255,.04)'},ticks:{color:'rgba(122,143,166,.8)',callback:v=>v+'ms'},border:{display:false}},
+        y:{grid:{display:false},ticks:{color:'rgba(122,143,166,.8)',font:{size:11}},border:{display:false}}
+      },
+      plugins:{legend:{display:false},tooltip:{callbacks:{label:ctx=>` ${ctx.raw}ms`,title:ctx=>ctx[0].label}}}
+    }
   });
 })();
 {% endif %}
