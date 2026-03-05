@@ -341,6 +341,28 @@ This is the "what did the model actually see at step 3?" view that reduces root-
 
 ---
 
+### `evalview replay` — Trajectory Diff Debugging
+
+When `evalview check` flags a regression, `replay` shows you exactly what changed — step by step, baseline vs. current — in the terminal and as a side-by-side HTML diagram:
+
+```bash
+evalview replay my-test            # Terminal diff + HTML report
+evalview replay my-test --no-browser  # Terminal only
+```
+
+Terminal output color codes:
+
+| Color | Meaning |
+|-------|---------|
+| **cyan** | Step matches baseline |
+| **red** | Step dropped (was in baseline, gone now) |
+| **yellow** | Step added (new, wasn't in baseline) |
+| **cyan/yellow** | Step present but arguments changed |
+
+The HTML report opens side-by-side Mermaid sequence diagrams — baseline on the left, current on the right — so you can see the full trajectory divergence at a glance. A hint to the `evalview replay <test>` command is also printed automatically after every regression in `evalview check`.
+
+---
+
 ### LLM Judge Caching — 80% Cost Reduction in Statistical Mode
 
 When running tests multiple times (statistical mode with `variance.runs`), EvalView caches LLM judge responses to avoid redundant API calls for identical outputs:
@@ -984,6 +1006,7 @@ safety-refusal              95         95         ✓  same
 | **Programmatic API** | `run_single_test` / `check_single_test` for notebook and custom CI integration | [Docs](#programmatic-api) |
 | **Production Log Import** | `evalview import prod.jsonl` — auto-detect JSONL/OpenAI/EvalView formats, generate test YAMLs from real traffic | [Docs](#production-log-import) |
 | **Benchmark Packs** | 30 portable tests across RAG, coding, support, research — comparable scores per domain and difficulty tier | [Docs](#benchmark-packs) |
+| **Trajectory Diff (`evalview replay`)** | Step-by-step terminal + side-by-side HTML diff of baseline vs. current agent path — pinpoints where behavior diverged | [Docs](#evalview-replay--trajectory-diff-debugging) |
 
 ---
 
