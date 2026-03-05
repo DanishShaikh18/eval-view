@@ -154,3 +154,12 @@ class OllamaAdapter(AgentAdapter):
             ),
             trace_context=trace_context,
         )
+
+    async def health_check(self) -> bool:
+        """Check if the Ollama server is reachable."""
+        try:
+            async with httpx.AsyncClient(timeout=5.0) as client:
+                response = await client.get(f"{self.endpoint}/api/tags")
+                return response.status_code == 200
+        except httpx.RequestError:
+            return False

@@ -6,6 +6,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import httpx
 
 from evalview.adapters.http_adapter import HTTPAdapter
+from evalview.adapters.ollama_adapter import OllamaAdapter
 from evalview.core.types import ExecutionTrace
 
 
@@ -526,3 +527,60 @@ class TestHTTPAdapter:
             # Check that enable_tracing was sent
             call_args = mock_client.post.call_args
             assert call_args[1]["json"]["enable_tracing"] is True
+
+
+class TestOllamaAdapter:
+    """Tests for OllamaAdapter health checks."""
+
+    @pytest.mark.asyncio
+    async def test_health_check_success(self):
+        """Test successful health check."""
+        adapter = OllamaAdapter(endpoint="http://localhost:11434")
+
+        with patch("httpx.AsyncClient") as mock_client_class:
+            mock_client = AsyncMock()
+            mock_response = AsyncMock()
+            mock_response.status_code = 200
+            mock_client.get.return_value = mock_response
+            mock_client.__aenter__.return_value = mock_client
+            mock_client.__aexit__.return_value = None
+            mock_client_class.return_value = mock_client
+
+            result = await adapter.health_check()
+
+            assert result is True
+            mock_client.get.assert_called_once_with("http://localhost:11434/api/tags")
+
+    @pytest.mark.asyncio
+    async def test_health_check_failure(self):
+        """Test failed health check."""
+        adapter = OllamaAdapter(endpoint="http://localhost:11434")
+
+        with patch("httpx.AsyncClient") as mock_client_class:
+            mock_client = AsyncMock()
+            mock_response = AsyncMock()
+            mock_response.status_code = 500
+            mock_client.get.return_value = mock_response
+            mock_client.__aenter__.return_value = mock_client
+            mock_client.__aexit__.return_value = None
+            mock_client_class.return_value = mock_client
+
+            result = await adapter.health_check()
+
+            assert result is False
+
+    @pytest.mark.asyncio
+    async def test_health_check_wrong_port(self):
+        """Test health check with unreachable host/port."""
+        adapter = OllamaAdapter(endpoint="http://localhost:1")
+
+        with patch("httpx.AsyncClient") as mock_client_class:
+            mock_client = AsyncMock()
+            mock_client.get.side_effect = httpx.ConnectError("Connection refused")
+            mock_client.__aenter__.return_value = mock_client
+            mock_client.__aexit__.return_value = None
+            mock_client_class.return_value = mock_client
+
+            result = await adapter.health_check()
+
+            assert result is False
