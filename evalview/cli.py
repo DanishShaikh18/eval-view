@@ -120,6 +120,72 @@ def _create_adapter(adapter_type: str, endpoint: str, timeout: float = 30.0, all
     return adapter_class(endpoint=endpoint, timeout=timeout)
 
 
+async def _execute_multi_turn_trace(test_case: Any, adapter: Any) -> Any:
+    """Execute all turns of a multi-turn test and return a merged ExecutionTrace.
+
+    Each turn's query is sent to the adapter with the accumulated conversation
+    history in ``context["conversation_history"]``.  All tool-call steps are
+    collected across every turn so the evaluator sees the complete picture.
+    The final_output of the merged trace is the agent's response on the last turn.
+    """
+    import uuid as _uuid
+    from evalview.core.types import ExecutionTrace, ExecutionMetrics, TokenUsage
+
+    conversation_history: List[Dict[str, Any]] = []
+    all_steps: List[Any] = []
+    turn_traces: List[Any] = []
+
+    for turn in test_case.turns:
+        # Build per-turn context, injecting accumulated history
+        turn_context: Dict[str, Any] = dict(turn.context or {})
+        if conversation_history:
+            turn_context["conversation_history"] = list(conversation_history)
+
+        trace = await adapter.execute(turn.query, turn_context)
+        turn_traces.append(trace)
+        all_steps.extend(trace.steps)
+
+        # Append this exchange to the running history
+        conversation_history.append({"role": "user", "content": turn.query})
+        conversation_history.append({"role": "assistant", "content": trace.final_output})
+
+    # Merge metrics across all turns
+    total_cost = sum(t.metrics.total_cost for t in turn_traces)
+    total_latency = sum(t.metrics.total_latency for t in turn_traces)
+    merged_tokens: Optional[TokenUsage] = None
+    if any(t.metrics.total_tokens for t in turn_traces):
+        merged_tokens = TokenUsage(
+            input_tokens=sum(
+                (t.metrics.total_tokens.input_tokens if t.metrics.total_tokens else 0)
+                for t in turn_traces
+            ),
+            output_tokens=sum(
+                (t.metrics.total_tokens.output_tokens if t.metrics.total_tokens else 0)
+                for t in turn_traces
+            ),
+            cached_tokens=sum(
+                (t.metrics.total_tokens.cached_tokens if t.metrics.total_tokens else 0)
+                for t in turn_traces
+            ),
+        )
+
+    last_trace = turn_traces[-1]
+    return ExecutionTrace(
+        session_id=str(_uuid.uuid4()),
+        start_time=turn_traces[0].start_time,
+        end_time=last_trace.end_time,
+        steps=all_steps,
+        final_output=last_trace.final_output,
+        metrics=ExecutionMetrics(
+            total_cost=total_cost,
+            total_latency=total_latency,
+            total_tokens=merged_tokens,
+        ),
+        model_id=last_trace.model_id,
+        model_provider=last_trace.model_provider,
+    )
+
+
 @click.group(context_settings={"allow_interspersed_args": False})
 @click.version_option(version=_EVALVIEW_VERSION)
 @click.pass_context
@@ -2724,6 +2790,20 @@ async def _run_async(
 
         async def _execute():
             return await test_adapter.execute(test_case.input.query, context)
+
+        # ── Multi-turn execution ───────────────────────────────────────────
+        if test_case.is_multi_turn:
+            if verbose:
+                console.print(f"[dim]  ↳ multi-turn ({len(test_case.turns)} turns)[/dim]")
+            trace = await _execute_multi_turn_trace(test_case, test_adapter)
+            adapter_name = getattr(test_adapter, "name", None)
+            result = await evaluator.evaluate(test_case, trace, adapter_name=adapter_name)
+            if tracker:
+                if track:
+                    tracker.store_result(result)
+                if compare_baseline:
+                    regression_reports[test_case.name] = tracker.compare_to_baseline(result)
+            return (result.passed, result)
 
         # Check if this test uses statistical mode
         if is_statistical_mode(test_case):
