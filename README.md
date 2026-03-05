@@ -811,12 +811,54 @@ suite_type: regression                # "capability" (hill-climb) or "regression
 difficulty: medium                    # trivial | easy | medium | hard | expert
 ```
 
+### Multi-Turn Conversation Tests
+
+Replace `input` with `turns` to test stateful, multi-step conversations. Each turn receives the accumulated history in `context["conversation_history"]` so your agent can track context across turns.
+
+```yaml
+# tests/booking-flow.yaml
+name: flight-booking-conversation
+description: "Agent books a flight across a 3-turn conversation"
+
+turns:
+  - query: "I want to fly from NYC to Paris next Friday"
+    expected:
+      tools: [search_flights]
+
+  - query: "Book the cheapest economy option"
+    expected:
+      tools: [book_flight]
+      output:
+        contains: ["confirmed", "Paris"]
+
+  - query: "Can you send me a confirmation email?"
+    expected:
+      tools: [send_email]
+      output:
+        contains: ["sent", "inbox"]
+
+expected:
+  # Top-level expected applies across ALL turns (overall pass/fail gate)
+  tools: [search_flights, book_flight, send_email]
+
+thresholds:
+  min_score: 80
+  max_cost: 0.05
+```
+
+**Rules:**
+- `turns` requires ≥ 2 entries — single-turn tests use `input`
+- Each turn may have its own `expected` block for per-turn assertions
+- `context` at the turn level is merged with `test_case.tools` and `conversation_history`
+- The merged trace covers all turns: tool calls, costs, and latency are summed
+
 ---
 
 ## Features
 
 | Feature | Description | Docs |
 |---------|-------------|------|
+| **Multi-Turn Testing** | Test full conversations: sequential turns with injected history, per-turn `expected` assertions, merged cost + latency | [Docs](#multi-turn-conversation-tests) |
 | **`forbidden_tools`** | Declare tools that must never be called — hard-fail on any violation, score 0, no partial credit | [Docs](#safety-contracts-trace-replay--judge-caching) |
 | **HTML Trace Replay** | Step-by-step replay of every LLM call and tool invocation — exact prompt, completion, tokens, params | [Docs](#html-trace-replay--full-forensic-debugging) |
 | **LLM Judge Caching** | Cache judge responses in statistical mode — ~80% fewer API calls, stored in `.evalview/.judge_cache.db` | [Docs](#llm-judge-caching--80-cost-reduction-in-statistical-mode) |
@@ -1008,9 +1050,9 @@ evalview skill test tests.yaml --agent langgraph
 
 ## Roadmap
 
-**Shipped:** Golden traces • **Snapshot/check workflow** • **Cloud baseline sync (login/logout/whoami + silent push/pull)** • **Streak tracking & celebrations** • **Multi-reference goldens** • Tool categories • Statistical mode • Difficulty levels • Partial sequence credit • Skills validation • E2E agent testing • Build & smoke tests • Health checks • Safety guards (`no_sudo`, `git_clean`) • Claude Code & Codex adapters • **Opus 4.6 cost tracking** • MCP servers • HTML reports • Interactive chat mode • EvalView Gym • **Provider-agnostic skill tests** • **15-template pattern library** • **Personalized init wizard** • **`forbidden_tools` safety contracts** • **HTML trace replay** (exact prompt/completion per step) • **Silent model update detection** (model fingerprinting + version change panel) • **Gradual drift detection** (OLS trend analysis over JSONL history) • **Semantic diff** (`--semantic-diff`, embedding-based output comparison)
+**Shipped:** Golden traces • **Snapshot/check workflow** • **Cloud baseline sync (login/logout/whoami + silent push/pull)** • **Streak tracking & celebrations** • **Multi-reference goldens** • Tool categories • Statistical mode • Difficulty levels • Partial sequence credit • Skills validation • E2E agent testing • Build & smoke tests • Health checks • Safety guards (`no_sudo`, `git_clean`) • Claude Code & Codex adapters • **Opus 4.6 cost tracking** • MCP servers • HTML reports • Interactive chat mode • EvalView Gym • **Provider-agnostic skill tests** • **15-template pattern library** • **Personalized init wizard** • **`forbidden_tools` safety contracts** • **HTML trace replay** (exact prompt/completion per step) • **Silent model update detection** (model fingerprinting + version change panel) • **Gradual drift detection** (OLS trend analysis over JSONL history) • **Semantic diff** (`--semantic-diff`, embedding-based output comparison) • **Multi-turn conversation testing** (sequential turns with injected history, per-turn `expected` assertions) • **A/B endpoint comparison** (`evalview compare --v1 <url> --v2 <url>`)
 
-**Coming:** Agent Teams trace analysis • Multi-turn conversations • Grounded hallucination detection • Error compounding metrics • Container isolation
+**Coming:** Agent Teams trace analysis • Grounded hallucination detection • Error compounding metrics • Container isolation
 
 [Vote on features →](https://github.com/hidai25/eval-view/discussions)
 

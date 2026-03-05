@@ -8,6 +8,7 @@ import re
 import sys
 import threading
 import time
+import uuid
 
 logger = logging.getLogger(__name__)
 from importlib.metadata import version as _pkg_version, PackageNotFoundError
@@ -30,6 +31,7 @@ from dotenv import load_dotenv
 
 from evalview.core.loader import TestCaseLoader
 from evalview.core.pricing import get_model_pricing_info
+from evalview.core.types import ExecutionTrace, ExecutionMetrics, TokenUsage
 from evalview.core.llm_provider import (
     get_or_select_provider,
     save_provider_preference,
@@ -120,7 +122,7 @@ def _create_adapter(adapter_type: str, endpoint: str, timeout: float = 30.0, all
     return adapter_class(endpoint=endpoint, timeout=timeout)
 
 
-async def _execute_multi_turn_trace(test_case: Any, adapter: Any) -> Any:
+async def _execute_multi_turn_trace(test_case: Any, adapter: Any) -> ExecutionTrace:
     """Execute all turns of a multi-turn test and return a merged ExecutionTrace.
 
     Each turn's query is sent to the adapter with the accumulated conversation
@@ -128,16 +130,16 @@ async def _execute_multi_turn_trace(test_case: Any, adapter: Any) -> Any:
     collected across every turn so the evaluator sees the complete picture.
     The final_output of the merged trace is the agent's response on the last turn.
     """
-    import uuid as _uuid
-    from evalview.core.types import ExecutionTrace, ExecutionMetrics, TokenUsage
-
     conversation_history: List[Dict[str, Any]] = []
     all_steps: List[Any] = []
     turn_traces: List[Any] = []
 
     for turn in test_case.turns:
-        # Build per-turn context, injecting accumulated history
+        # Build per-turn context: turn-level overrides first, then inject
+        # shared tools and accumulated conversation history.
         turn_context: Dict[str, Any] = dict(turn.context or {})
+        if test_case.tools:
+            turn_context.setdefault("tools", test_case.tools)
         if conversation_history:
             turn_context["conversation_history"] = list(conversation_history)
 
@@ -171,7 +173,7 @@ async def _execute_multi_turn_trace(test_case: Any, adapter: Any) -> Any:
 
     last_trace = turn_traces[-1]
     return ExecutionTrace(
-        session_id=str(_uuid.uuid4()),
+        session_id=str(uuid.uuid4()),
         start_time=turn_traces[0].start_time,
         end_time=last_trace.end_time,
         steps=all_steps,
