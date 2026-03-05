@@ -10061,5 +10061,251 @@ def capture(agent: Optional[str], port: int, output_dir: str) -> None:
         ))
 
 
+@main.command("import")
+@click.argument("log_file", type=click.Path(exists=True))
+@click.option(
+    "--format", "fmt",
+    default="auto",
+    type=click.Choice(["auto", "jsonl", "openai", "evalview"]),
+    help="Log format (default: auto-detect)",
+)
+@click.option(
+    "--output-dir", "output_dir",
+    default="tests/imported",
+    show_default=True,
+    help="Directory for generated test YAML files",
+)
+@click.option(
+    "--max", "max_entries",
+    default=50,
+    show_default=True,
+    help="Maximum number of log entries to import",
+)
+@click.option(
+    "--prefix",
+    default="imported",
+    show_default=True,
+    help="Filename prefix for generated test cases",
+)
+@click.option(
+    "--dry-run",
+    is_flag=True,
+    help="Preview what would be imported without writing files",
+)
+@track_command("import")
+def import_logs(
+    log_file: str,
+    fmt: str,
+    output_dir: str,
+    max_entries: int,
+    prefix: str,
+    dry_run: bool,
+) -> None:
+    """Convert production logs into EvalView test cases.
+
+    Reads a log file and generates one YAML test case per entry.
+    Supports JSONL, OpenAI chat-completion logs, and EvalView capture format.
+
+    \b
+    Examples:
+        evalview import prod.jsonl
+        evalview import traces.jsonl --format openai --output-dir tests/prod
+        evalview import logs.jsonl --max 100 --dry-run
+    """
+    from evalview.importers.log_importer import parse_log_file, detect_format, entries_to_yaml
+
+    path = Path(log_file)
+
+    detected = fmt if fmt != "auto" else detect_format(path)
+    if detected == "unknown":
+        console.print(
+            f"\n[yellow]⚠ Could not detect log format for {path.name}.[/yellow]\n"
+            "Specify with [bold]--format jsonl|openai|evalview[/bold]\n"
+        )
+        sys.exit(1)
+
+    fmt_label = f"[cyan]{detected}[/cyan]" + (" [dim](auto-detected)[/dim]" if fmt == "auto" else "")
+    console.print(f"\n[cyan]◈ Importing {path.name}[/cyan]  format: {fmt_label}\n")
+
+    entries = parse_log_file(path, fmt=detected, max_entries=max_entries)
+
+    if not entries:
+        console.print("[yellow]No entries found in log file.[/yellow]\n")
+        sys.exit(1)
+
+    # Preview
+    from rich.table import Table
+    table = Table(show_header=True, header_style="bold", show_lines=False)
+    table.add_column("#", style="dim", width=3)
+    table.add_column("Query", min_width=45)
+    table.add_column("Tools", style="cyan")
+    table.add_column("Has Output", justify="center", width=10)
+
+    for i, e in enumerate(entries[:10], 1):
+        tools_str = ", ".join(e.tool_calls) if e.tool_calls else "[dim]—[/dim]"
+        has_out = "[green]✓[/green]" if e.output else "[dim]—[/dim]"
+        query_preview = e.query[:60] + "…" if len(e.query) > 60 else e.query
+        table.add_row(str(i), query_preview, tools_str, has_out)
+
+    if len(entries) > 10:
+        table.add_row("[dim]…[/dim]", f"[dim]+{len(entries) - 10} more[/dim]", "", "")
+
+    console.print(table)
+    console.print()
+
+    if dry_run:
+        console.print(f"[dim]Dry run — {len(entries)} test cases would be written to {output_dir}/[/dim]\n")
+        return
+
+    out = Path(output_dir)
+    written = entries_to_yaml(entries, out, name_prefix=prefix)
+
+    console.print(f"[green]✓ {len(written)} test cases written to {out}/[/green]")
+    console.print(f"[dim]Next: evalview snapshot   (capture baseline)[/dim]\n")
+
+
+@main.command("benchmark")
+@click.argument(
+    "domain",
+    type=click.Choice(["rag", "coding", "customer-support", "research", "all"]),
+    required=False,
+    default=None,
+)
+@click.option(
+    "--list", "list_only",
+    is_flag=True,
+    help="List available benchmark domains without running",
+)
+@click.option(
+    "--export-only",
+    is_flag=True,
+    help="Export test YAMLs to tests/benchmarks/<domain>/ without running",
+)
+@click.option(
+    "--output-dir", "output_dir",
+    default=None,
+    help="Override output directory for --export-only (default: tests/benchmarks/<domain>)",
+)
+@click.option("--no-browser", is_flag=True, help="Don't auto-open the HTML report")
+@track_command("benchmark")
+def benchmark_cmd(
+    domain: Optional[str],
+    list_only: bool,
+    export_only: bool,
+    output_dir: Optional[str],
+    no_browser: bool,
+) -> None:
+    """Run a curated benchmark against your configured agent.
+
+    Benchmarks are portable test packs that measure agent quality on
+    common tasks (RAG, coding, support) and produce a comparable score.
+
+    \b
+    Examples:
+        evalview benchmark rag               # Run RAG benchmark
+        evalview benchmark coding            # Run coding benchmark
+        evalview benchmark all               # Run all domains
+        evalview benchmark rag --export-only # Export YAMLs only
+        evalview benchmark --list            # Show available domains
+    """
+    import tempfile
+    from evalview.benchmarks import DOMAINS, get_pack, write_pack_yaml
+
+    if list_only or domain is None:
+        console.print("\n[bold]Available benchmark domains:[/bold]\n")
+        for d, desc in DOMAINS.items():
+            console.print(f"  [cyan]{d:<20}[/cyan] {desc}")
+        console.print(
+            "\n[dim]Run: evalview benchmark <domain>[/dim]\n"
+        )
+        return
+
+    domains_to_run = list(DOMAINS.keys()) if domain == "all" else [domain]
+
+    for d in domains_to_run:
+        cases = get_pack(d)
+        dest = Path(output_dir) if output_dir else Path("tests") / "benchmarks" / d
+
+        console.print(f"\n[cyan]◈ Benchmark: {d}[/cyan]  ({len(cases)} tests)\n")
+
+        written = write_pack_yaml(d, dest)
+        console.print(f"  [dim]Tests written to {dest}/[/dim]")
+
+        if export_only:
+            console.print(f"  [green]✓ {len(written)} files exported[/green]")
+            console.print(f"  [dim]Run: evalview snapshot --test-path {dest}[/dim]\n")
+            continue
+
+        # Check agent is configured
+        config = _load_config_if_exists()
+        if not config or not getattr(config, "endpoint", None):
+            console.print(
+                "  [yellow]⚠ No agent configured.[/yellow] "
+                f"Run [bold]evalview init[/bold] first, or use "
+                f"[bold]--export-only[/bold] to just export the test files.\n"
+            )
+            continue
+
+        # Load the written YAML files as TestCase objects and run them
+        loader = TestCaseLoader()
+        try:
+            test_cases = loader.load_from_directory(dest)
+        except Exception as e:
+            console.print(f"  [red]❌ Failed to load benchmark tests: {e}[/red]\n")
+            continue
+
+        if not test_cases:
+            console.print("  [yellow]No test cases loaded.[/yellow]\n")
+            continue
+
+        console.print(f"  Running {len(test_cases)} tests against {config.endpoint}...\n")
+        results = _execute_snapshot_tests(test_cases, config)
+
+        if not results:
+            console.print("  [red]No results — check your agent is running.[/red]\n")
+            continue
+
+        # Score report
+        passed = sum(1 for r in results if r.passed)
+        scores = [r.score for r in results]
+        avg_score = sum(scores) / len(scores) if scores else 0
+        pass_rate = passed / len(results) * 100 if results else 0
+
+        score_color = "green" if avg_score >= 70 else "yellow" if avg_score >= 50 else "red"
+        console.print(
+            f"\n  [bold]Benchmark: {d}[/bold]  "
+            f"[{score_color}]{avg_score:.1f}/100[/{score_color}]  "
+            f"({passed}/{len(results)} passed, {pass_rate:.0f}% pass rate)\n"
+        )
+
+        # Per-difficulty breakdown
+        by_diff: Dict[str, List[float]] = {}
+        for tc, r in zip(test_cases, results):
+            diff = getattr(tc, "difficulty", None) or "medium"
+            by_diff.setdefault(diff, []).append(r.score)
+
+        diff_order = ["trivial", "easy", "medium", "hard", "expert"]
+        for diff in diff_order:
+            if diff not in by_diff:
+                continue
+            diff_scores = by_diff[diff]
+            diff_avg = sum(diff_scores) / len(diff_scores)
+            bar_len = int(diff_avg / 5)
+            bar = "█" * bar_len + "░" * (20 - bar_len)
+            c = "green" if diff_avg >= 70 else "yellow" if diff_avg >= 50 else "red"
+            console.print(f"  {diff:<8} [{c}]{bar}[/{c}] {diff_avg:.0f}/100")
+
+        console.print()
+
+        # Generate HTML report
+        from evalview.visualization import generate_visual_report
+        report_path = generate_visual_report(
+            results=results,
+            auto_open=not no_browser,
+            title=f"Benchmark: {d}",
+        )
+        console.print(f"  [green]◈ Report:[/green] {report_path}\n")
+
+
 if __name__ == "__main__":
     main()
