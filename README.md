@@ -501,6 +501,58 @@ evalview gym
 
 ---
 
+## Production Log Import
+
+Turn existing production traffic into test cases automatically — zero manual writing required.
+
+```bash
+# Auto-detect format and generate test YAMLs
+evalview import prod.jsonl
+
+# Specify format explicitly
+evalview import traces.jsonl --format openai --output-dir tests/prod
+
+# Preview without writing anything
+evalview import logs.jsonl --max 100 --dry-run
+```
+
+Supports three log formats (auto-detected):
+
+| Format | Detection | Description |
+|--------|-----------|-------------|
+| **JSONL** | `input`/`query`/`prompt` key | Generic flat JSON logs |
+| **OpenAI** | `messages` array | Chat completion logs |
+| **EvalView capture** | `request` + `response` keys | EvalView proxy format |
+
+After import, run `evalview snapshot` to capture baselines for all generated tests — your eval flywheel is now running.
+
+---
+
+## Benchmark Packs
+
+Measure your agent against curated, portable benchmark suites — comparable scores across teams and agent versions.
+
+```bash
+evalview benchmark --list            # Show available domains
+evalview benchmark rag               # Run RAG benchmark (8 tests)
+evalview benchmark coding            # Run coding benchmark (8 tests)
+evalview benchmark all               # Run all 30 tests across 4 domains
+evalview benchmark rag --export-only # Export YAMLs to tests/benchmarks/rag/
+```
+
+Four built-in domains:
+
+| Domain | Tests | What it measures |
+|--------|-------|-----------------|
+| `rag` | 8 | Retrieval, grounding, hallucination avoidance |
+| `coding` | 8 | Code generation, debugging, explanation |
+| `customer-support` | 8 | Empathy, resolution, escalation judgement |
+| `research` | 6 | Synthesis, comparison, structured output |
+
+Tests use `tool_categories` (not exact tool names) so they work regardless of your agent's specific tool implementations. Each test shows a per-difficulty score bar to pinpoint where your agent is weakest.
+
+---
+
 ## Supported Agents & Frameworks
 
 | Agent | E2E Testing | Trace Capture |
@@ -930,6 +982,8 @@ safety-refusal              95         95         ✓  same
 | **Personalized Init Wizard** | `evalview init --wizard` — generates a config + first test tailored to your agent | [Docs](#skills-testing-setup-wizard--15-test-templates) |
 | **Pytest Plugin** | `evalview_check` fixture for regression assertions inside standard pytest suites | [Docs](#pytest-plugin) |
 | **Programmatic API** | `run_single_test` / `check_single_test` for notebook and custom CI integration | [Docs](#programmatic-api) |
+| **Production Log Import** | `evalview import prod.jsonl` — auto-detect JSONL/OpenAI/EvalView formats, generate test YAMLs from real traffic | [Docs](#production-log-import) |
+| **Benchmark Packs** | 30 portable tests across RAG, coding, support, research — comparable scores per domain and difficulty tier | [Docs](#benchmark-packs) |
 
 ---
 
