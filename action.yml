@@ -152,7 +152,7 @@ runs:
           mkdir -p .evalview/results
 
           set +e
-          evalview check "${ARGS[@]}" > "$RESULTS_FILE" 2>&1
+          evalview check "${ARGS[@]}" > "$RESULTS_FILE"
           EXIT_CODE=$?
           set -e
 
