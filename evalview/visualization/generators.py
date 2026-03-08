@@ -759,17 +759,27 @@ table tr:hover td{background:rgba(255,255,255,.02)}
             
             {% for turn in t.turns %}
             <details style="background:rgba(255,255,255,.03);border:1px solid var(--border);border-radius:6px;margin-bottom:6px;overflow:hidden;">
-              <summary style="padding:10px 14px;cursor:pointer;font-size:12px;font-weight:600;display:flex;align-items:center;gap:8px;">
-                <span style="color:var(--blue)">Turn {{ turn.index }}</span>
-                <span style="color:var(--muted);font-weight:400;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">{{ turn.query }}</span>
+              <summary style="padding:10px 14px;cursor:pointer;font-size:12px;font-weight:600;display:flex;align-items:center;color:var(--blue);">
+                Turn {{ turn.index }}
               </summary>
+              
               <div style="padding:10px 14px;border-top:1px solid var(--border);background:rgba(0,0,0,.2);font-family:monospace;font-size:11px;color:var(--muted);">
-                Tools called: 
-                {% if turn.tools %}
-                  {% for tool in turn.tools %}<span style="background:rgba(255,255,255,.08);padding:2px 6px;border-radius:4px;margin-right:4px;">{{ tool }}</span>{% endfor %}
-                {% else %}
-                  None
-                {% endif %}
+                
+                <div style="margin-bottom: 10px; color: var(--text); font-family: var(--font); line-height: 1.5;">
+                  <span style="color:var(--muted); font-size: 10px; font-weight: 700; text-transform: uppercase; margin-right: 8px;">Query</span>{{ turn.query }}
+                </div>
+                
+                <div style="display: flex; align-items: center; gap: 8px;">
+                  <span style="color:var(--muted); font-size: 10px; font-weight: 700; text-transform: uppercase;">Tools called</span>
+                  <div style="display: flex; flex-wrap: wrap; gap: 4px;">
+                    {% if turn.tools %}
+                      {% for tool in turn.tools %}<span style="background:rgba(255,255,255,.08);padding:2px 6px;border-radius:4px;color:var(--muted);">{{ tool }}</span>{% endfor %}
+                    {% else %}
+                      <span style="opacity: 0.5;">None</span>
+                    {% endif %}
+                  </div>
+                </div>
+                
               </div>
             </details>
             {% endfor %}
