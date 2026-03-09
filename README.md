@@ -37,7 +37,7 @@
 <p align="center">
   <img src="assets/hero.jpg" alt="EvalView — multi-turn execution trace with sequence diagram" width="860">
   <br>
-  <sub>Auto-generated HTML report — execution traces, sequence diagrams, scores, cost, and latency per test</sub>
+  <sub>Multi-turn execution trace — every tool call, parameter, and response visualized</sub>
 </p>
 
 ### How it works
@@ -67,9 +67,13 @@ evalview check                                           # 3. Catch regressions
 
 That's it. No LLM-as-judge required. No API keys needed. Works with **LangGraph, CrewAI, OpenAI, Claude, Mistral, HuggingFace, Ollama, and any HTTP API**.
 
+**Ready to try it?**
+
 ```bash
 pip install evalview && evalview demo   # See regression detection live, ~30 seconds
 ```
+
+[Full Quick Start guide →](#quick-start)
 
 <details>
 <summary><strong>See it in action</strong> (CLI demo)</summary>
