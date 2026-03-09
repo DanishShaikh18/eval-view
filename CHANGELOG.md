@@ -7,6 +7,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.4.1] - 2026-03-09
+
+### Added
+- **Mistral adapter** — direct Mistral API support via `pip install evalview[mistral]`
+- **PII evaluator** — opt-in detection for emails, phones, SSNs, credit cards, addresses (with Luhn validation)
+- **Multi-turn HTML reports** — Mermaid sequence diagrams showing conversation turns with tool calls
+
+### Fixed
+- GitHub Action security: replaced `eval $CMD` with bash arrays, moved inputs to env vars
+- Mermaid diagram rendering: fixed autoescape breaking arrows, sanitized user content
+- Multi-turn step tracing: annotated steps with `turn_index` and `turn_query`
+
+### Changed
+- README hero section rewritten for clarity — logo, sequence diagram hero, data flow explanation
+- Model version examples updated to Claude 4.5/4.6
+
 ## [0.4.0] - 2026-03-05
 
 ### Added
