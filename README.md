@@ -688,6 +688,23 @@ monitor:
 
 Or set `EVALVIEW_SLACK_WEBHOOK` as an environment variable. Priority: CLI flag > config.yaml > env var.
 
+**Running as a background service:**
+
+```bash
+# Quick — survives terminal close
+nohup evalview monitor --slack-webhook https://... &
+
+# systemd (Linux) — auto-restart on crash
+# /etc/systemd/system/evalview-monitor.service
+[Service]
+ExecStart=evalview monitor
+WorkingDirectory=/path/to/your/project
+Restart=always
+
+# Docker
+docker run -d -v $(pwd):/app -w /app evalview monitor --slack-webhook https://...
+```
+
 ---
 
 ## EvalView Cloud — Team Baseline Sync
