@@ -109,6 +109,14 @@ Specifically, EvalView diffs the full agent trajectory — tool calls, parameter
 
 ---
 
+## Who is this for?
+
+- **You ship an AI agent and need to know when it breaks.** Model updates, prompt tweaks, tool changes — any of these can silently alter behavior. EvalView catches it before your users do.
+- **You run agents in CI/CD** and want a `pytest`-style gate that blocks regressions from merging.
+- **You maintain multiple agents** and need a single dashboard view of what's stable and what's drifting.
+
+---
+
 ## What EvalView Catches
 
 | Status | Meaning | Action |
