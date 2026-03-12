@@ -7,6 +7,32 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.5.0] - 2026-03-12
+
+### Added
+- **`evalview monitor`** — continuous regression detection for production. Runs `evalview check` in a loop with configurable interval, graceful Ctrl+C shutdown, and cumulative cost tracking
+- **Slack alerts** — webhook notifications on new regressions with smart dedup (no re-alerts on persistent failures) and recovery notifications when issues are resolved
+- **`--history` flag** — append each monitor cycle's results to a JSONL file for trend analysis and dashboards (community contribution by @clawtom)
+- **`--csv` flag for check** — export check results to CSV (community contribution by @muhammadrashid4587)
+- **`--timeout` flag for check** — configurable per-test timeout with validation (community contribution by @zamadye)
+- **Better error messages** — human-friendly connection failure messages with actionable guidance (community contribution by @passionworkeer)
+- **Monitor config** — `MonitorConfig` model with validation, configurable via CLI flags, `config.yaml`, or `EVALVIEW_SLACK_WEBHOOK` env var
+- **Playful monitor messages** — rotating start, cycle, and success messages to prevent repetition fatigue
+- **Deployment docs** — nohup, systemd, and Docker examples for running monitor as a background service
+
+### Fixed
+- Severity comparison bug in JSONL history — was using fail_on filter instead of actual pass/fail counts
+- DiffStatus comparisons now use type-safe enum comparison instead of fragile string matching
+- Mypy type error in CSV export
+- Redundant config loading in monitor loop eliminated
+
+### Changed
+- Extracted `_parse_fail_statuses` shared utility for consistent fail_on parsing across check and monitor commands
+- Monitor loop receives config from CLI handler instead of loading it twice
+
+### Community
+- 4 community PRs merged in this release — thank you @clawtom, @muhammadrashid4587, @zamadye, and @passionworkeer!
+
 ## [0.4.1] - 2026-03-09
 
 ### Added
