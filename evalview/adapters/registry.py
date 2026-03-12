@@ -1,12 +1,6 @@
-"""
-Adapter registry for EvalView.
+"""Adapter registry — dynamic lookup and instantiation by name.
 
-Provides a centralized registry for adapter classes, allowing dynamic
-adapter discovery and creation without modifying CLI code.
-
-.. warning::
-    This module is **experimental** and may change in future versions.
-    The API is not yet stable.
+Experimental: API may change.
 """
 
 from typing import Any, Dict, Optional, Set, Type, List

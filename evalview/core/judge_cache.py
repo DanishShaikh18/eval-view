@@ -1,10 +1,6 @@
-"""Cache for LLM judge responses to avoid redundant API calls.
+"""SQLite cache for LLM judge responses, keyed on (test, query, output, criteria).
 
-When running tests in statistical mode (--runs N), the same agent output
-may be evaluated multiple times by the LLM judge. This module caches
-judge responses keyed on the full evaluation context — test name, query,
-output text, and all criteria — so identical evaluations are served from
-cache instead of making duplicate API calls.
+Prevents duplicate API calls when ``--runs N`` evaluates the same output repeatedly.
 """
 
 import hashlib

@@ -1,21 +1,8 @@
-"""Semantic similarity using OpenAI's embedding API.
+"""Embedding-based output comparison (text-embedding-3-small).
 
-Provides embedding-based output comparison as an opt-in enhancement
-to the default lexical (SequenceMatcher) comparison in DiffEngine.
-
-Requires:
-    OPENAI_API_KEY environment variable (or explicit api_key parameter)
-
-Cost:
-    ~$0.00002 per call with text-embedding-3-small pricing.
-    Each comparison makes a single batched call (2 texts), so ~$0.00004 per check.
-
-Enable via .evalview/config.yaml:
-    diff:
-      semantic_diff_enabled: true
-
-Or per-run:
-    evalview check --semantic-diff
+Opt-in alternative to the default lexical SequenceMatcher diff.
+~$0.00004 per check. Enable with ``evalview check --semantic-diff``
+or ``semantic_diff_enabled: true`` in config.
 """
 
 import math

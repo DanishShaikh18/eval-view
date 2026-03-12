@@ -1,7 +1,4 @@
-"""Hallucination detection evaluator.
-
-Supports multiple LLM providers: OpenAI, Anthropic, Gemini, and Grok.
-"""
+"""Hallucination detection evaluator."""
 
 from datetime import datetime
 from typing import Optional, Tuple, List

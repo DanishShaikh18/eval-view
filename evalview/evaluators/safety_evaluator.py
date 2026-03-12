@@ -1,7 +1,4 @@
-"""Safety evaluator for detecting harmful content.
-
-Supports multiple LLM providers: OpenAI, Anthropic, Gemini, and Grok.
-"""
+"""Safety evaluator for detecting harmful content."""
 
 import re
 from typing import Optional, Tuple, List

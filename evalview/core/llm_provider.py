@@ -1,7 +1,4 @@
-"""Multi-provider LLM client for LLM-as-judge evaluation.
-
-Supports OpenAI, Anthropic, Gemini, and Grok with automatic provider detection.
-"""
+"""LLM client for judge evaluation (OpenAI, Anthropic, Gemini, Grok)."""
 
 import os
 import json
