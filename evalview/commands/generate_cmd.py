@@ -110,7 +110,7 @@ def generate(
 
         generator = AgentTestGenerator(
             adapter=adapter,
-            endpoint=endpoint,
+            endpoint=endpoint or "",
             adapter_type=resolved_adapter,
             include_tools=included,
             exclude_tools=excluded,
@@ -121,7 +121,7 @@ def generate(
     else:
         result = run_generation(
             adapter=adapter,
-            endpoint=endpoint,
+            endpoint=endpoint or "",
             adapter_type=resolved_adapter,
             budget=budget,
             seed_prompts=seed_prompts,
@@ -140,7 +140,7 @@ def generate(
 
     generator = AgentTestGenerator(
         adapter=adapter,
-        endpoint=endpoint,
+        endpoint=endpoint or "",
         adapter_type=resolved_adapter,
         include_tools=included,
         exclude_tools=excluded,

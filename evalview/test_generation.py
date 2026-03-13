@@ -173,6 +173,8 @@ class AgentTestGenerator:
             seen_queries.add(query)
 
             try:
+                if self.adapter is None:
+                    raise RuntimeError("No adapter configured for live probing")
                 trace = await self.adapter.execute(query)
             except Exception as exc:
                 failures.append(f"{query[:80]}: {exc}")
@@ -465,7 +467,7 @@ class AgentTestGenerator:
             expected.output = ExpectedOutput(not_contains=["error", "traceback"])
 
         confidence = self._confidence_for_probe(probe)
-        dangerous_tools = self._infer_forbidden_tools(probe, clustered.values())
+        dangerous_tools = self._infer_forbidden_tools(probe, list(clustered.values()))
         if dangerous_tools:
             expected.forbidden_tools = dangerous_tools
 
