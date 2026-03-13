@@ -103,10 +103,15 @@ Works with **LangGraph, CrewAI, OpenAI, Claude, Mistral, HuggingFace, Ollama, an
 pip install evalview && evalview demo   # ~30 seconds, no API key needed
 ```
 
+[Demo command →](#no-agent-yet-try-the-demo)
+[Starter examples →](#starter-examples)
+[Framework support →](#supported-agents--frameworks)
+[Changelog / roadmap →](#project-status)
+[Website guides →](https://www.evalview.com/ai-agent-testing-ci-cd)
+
 [Full Quick Start guide →](#quick-start)
 [Documentation index →](docs/README.md)
 [Test Generation guide →](docs/TEST_GENERATION.md)
-[Website guides →](https://www.evalview.com/ai-agent-testing-ci-cd)
 
 <details>
 <summary><strong>See it in action</strong> (CLI demo)</summary>
@@ -163,6 +168,24 @@ If you searched for any of these, you're in the right place:
 - [MCP server testing guide on evalview.com](https://www.evalview.com/mcp-server-testing)
 - [LangGraph testing guide on evalview.com](https://www.evalview.com/langgraph-testing)
 - [Tool-calling agent testing guide on evalview.com](https://www.evalview.com/tool-calling-agent-testing)
+
+---
+
+## Starter Examples
+
+These are not theoretical snippets. They are the fastest way to see EvalView against real agent stacks already wired in this repo.
+
+| Stack | What you get | Path |
+|------|---------------|------|
+| LangGraph | example test case + README + screenshot | [examples/langgraph/](examples/langgraph/) |
+| CrewAI | example test case + README + HTML report | [examples/crewai/](examples/crewai/) |
+| MCP | contract and filesystem examples | [examples/mcp/](examples/mcp/) |
+| Ollama (Local) | local/offline testing flow | [examples/ollama/](examples/ollama/) |
+| Anthropic Claude | adapter example config | [examples/anthropic/](examples/anthropic/) |
+| OpenAI Assistants | working YAML cases + assistant setup script | [examples/openai-assistants/](examples/openai-assistants/) |
+| Generic backend patterns | backend implementation recipes | [examples/backend-implementations.md](examples/backend-implementations.md) |
+
+If you want the lowest-friction path, start with one of the example directories above and then adapt it to your own agent.
 
 ---
 
