@@ -156,6 +156,10 @@ def test_generate_writes_clustered_draft_suite(monkeypatch, tmp_path):
     assert "calculator" in report["tools_seen"]
     assert "forbidden_tools:" in multi_turn_yaml
 
+    weather_yaml = next(path.read_text(encoding="utf-8") for path in yaml_files if "weather" in path.name)
+    assert 'tools:' in weather_yaml
+    assert "San Francisco is 63 degrees and sunny" not in weather_yaml
+
 
 def test_generate_dry_run_does_not_write_files(monkeypatch, tmp_path):
     """Dry-run should preview generation without writing output."""

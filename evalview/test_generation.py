@@ -457,7 +457,11 @@ class AgentTestGenerator:
             if len(probe.tools) > 1:
                 expected.sequence = list(probe.tools)
 
-        phrases = self._extract_stable_phrases(probe.trace.final_output)
+        phrases = self._extract_stable_phrases(
+            probe.trace.final_output,
+            behavior_class=probe.behavior_class,
+            has_tools=bool(probe.tools),
+        )
         if phrases:
             expected.output = ExpectedOutput(
                 contains=phrases,
@@ -716,25 +720,31 @@ class AgentTestGenerator:
                 valid.append(query)
         return valid[:4]
 
-    def _extract_stable_phrases(self, text: str, max_phrases: int = 3) -> List[str]:
+    def _extract_stable_phrases(
+        self,
+        text: str,
+        behavior_class: str,
+        has_tools: bool,
+        max_phrases: int = 3,
+    ) -> List[str]:
         if not text:
             return []
 
         phrases: List[str] = []
+
+        # For tool-using or multi-turn flows, prefer trajectory assertions unless the
+        # output contains obviously stable anchors. This reduces brittle wording checks.
+        conservative_mode = has_tools or behavior_class in {"multi_turn", "clarification"}
+
         numbers = re.findall(r"\b\d+\.?\d*\b", text)
         phrases.extend(numbers[:1])
 
         quoted = re.findall(r'"([^"]+)"', text)
         phrases.extend(quoted[:1])
 
-        lines = [line.strip().lstrip("#*• ") for line in text.splitlines() if line.strip()]
-        for line in lines[:6]:
-            cleaned = re.sub(r"\*+|`", "", line).strip()
-            if len(cleaned) < 6 or "http" in cleaned:
-                continue
-            if cleaned.endswith("?") and len(cleaned.split()) < 4:
-                continue
-            phrases.append(cleaned[:48].rstrip(" ,.;:"))
+        if not conservative_mode:
+            entity_like = re.findall(r"\b[A-Z][a-z]{2,}(?:\s+[A-Z][a-z]{2,})?\b", text)
+            phrases.extend(entity_like[:2])
 
         seen = set()
         unique = []
