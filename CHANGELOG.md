@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.5.1] - 2026-03-13
+
+### Added
+- **`evalview generate`** — draft test suite generation from agent probing or log imports, with approval gating and CI review flow
+- **Approval workflow** — generated tests require explicit approval before becoming baselines
+- **CI review comments** — `evalview ci comment` posts generation reports on PRs
+
+### Fixed
+- Python 3.9 compatibility: replaced `datetime.UTC` with `timezone.utc`
+- Mypy type errors in generate command and test generation module
+- Codebase refactor and cleanup across 71 files
+
 ## [0.5.0] - 2026-03-12
 
 ### Added
