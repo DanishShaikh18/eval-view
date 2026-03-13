@@ -89,8 +89,8 @@ def benchmark_cmd(
         if not config or not getattr(config, "endpoint", None):
             console.print(
                 "  [yellow]⚠ No agent configured.[/yellow] "
-                f"Run [bold]evalview init[/bold] first, or use "
-                f"[bold]--export-only[/bold] to just export the test files.\n"
+                "Run [bold]evalview init[/bold] first, or use "
+                "[bold]--export-only[/bold] to just export the test files.\n"
             )
             continue
 

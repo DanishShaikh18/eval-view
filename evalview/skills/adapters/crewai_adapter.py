@@ -314,7 +314,7 @@ class CrewAISkillAdapter(SkillAgentAdapter):
         """
         if self._crewai_available is None:
             try:
-                import crewai
+                __import__("crewai")
                 self._crewai_available = True
             except ImportError:
                 self._crewai_available = False

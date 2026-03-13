@@ -7,7 +7,7 @@ Everything is re-exported here for backward compatibility.
 import os
 import json
 import logging
-from typing import Optional, Dict, Any, List, Tuple
+from typing import Optional, Dict, Any, Tuple
 
 # Re-export everything from llm_configs for backward compatibility
 from evalview.core.llm_configs import (  # noqa: F401

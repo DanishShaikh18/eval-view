@@ -474,7 +474,7 @@ class GooseAdapter(AgentAdapter):
         if last_tool_end > 0:
             response_lines = lines[last_tool_end:]
             # Filter out session metadata lines
-            response_lines = [l for l in response_lines if not l.startswith("starting session")]
+            response_lines = [line for line in response_lines if not line.startswith("starting session")]
             return "\n".join(response_lines).strip()
 
         # Fallback: return the last substantive paragraphs

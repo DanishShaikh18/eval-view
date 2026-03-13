@@ -704,7 +704,7 @@ Rules:
             # Cleanup temp file if rename fails
             try:
                 Path(tmp_path).unlink()
-            except:
+            except OSError:
                 pass
             raise RuntimeError(f"Failed to save test suite to {path}: {e}")
 

@@ -1,6 +1,5 @@
 """Tests for evalview/core/drift_tracker.py."""
 
-import json
 import shutil
 import tempfile
 from pathlib import Path
@@ -224,7 +223,7 @@ class TestPruning:
             tracker.record_check("my-test", _make_diff(0.90))
 
         with open(tracker.history_path) as f:
-            lines = [l for l in f.readlines() if l.strip()]
+            lines = [line for line in f.readlines() if line.strip()]
         assert len(lines) == 5
 
     def test_does_not_prune_under_limit(self, tmp_dir, monkeypatch):
@@ -238,5 +237,5 @@ class TestPruning:
             tracker.record_check("my-test", _make_diff(0.90))
 
         with open(tracker.history_path) as f:
-            lines = [l for l in f.readlines() if l.strip()]
+            lines = [line for line in f.readlines() if line.strip()]
         assert len(lines) == 10

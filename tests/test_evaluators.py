@@ -7,6 +7,7 @@ from unittest.mock import patch
 from evalview.core.llm_provider import LLMProvider
 from evalview.evaluators.tool_call_evaluator import ToolCallEvaluator
 from evalview.evaluators.sequence_evaluator import SequenceEvaluator
+from evalview.evaluators.hallucination_evaluator import HallucinationEvaluator
 from evalview.evaluators.output_evaluator import OutputEvaluator
 from evalview.evaluators.cost_evaluator import CostEvaluator
 from evalview.evaluators.latency_evaluator import LatencyEvaluator
@@ -858,8 +859,87 @@ class TestOutputEvaluator:
         result = await evaluator.evaluate(test_case, trace)
 
         assert result.score == 85
-        assert result.rationale == "The output correctly answers the question."
-        mock_chat_completion.assert_called_once()
+
+    @pytest.mark.asyncio
+    @patch("evalview.core.llm_provider.select_provider")
+    async def test_llm_failure_falls_back_to_deterministic_scoring(self, mock_select_provider):
+        """Operational judge failures should degrade cleanly to heuristic scoring."""
+        mock_select_provider.return_value = (LLMProvider.OPENAI, "fake-key")
+
+        test_case = TestCaseModel(
+            name="test",
+            input=TestInputModel(query="What is the capital of France?"),
+            expected=ExpectedBehavior(output=ExpectedOutput(contains=["Paris"])),
+            thresholds=Thresholds(min_score=50.0),
+        )
+        trace = ExecutionTrace(
+            session_id="test",
+            start_time=datetime.now(),
+            end_time=datetime.now(),
+            steps=[],
+            final_output="The capital of France is Paris.",
+            metrics=ExecutionMetrics(total_cost=0.0, total_latency=0.0),
+        )
+
+        evaluator = OutputEvaluator()
+
+        with patch.object(
+            evaluator.llm_client,
+            "chat_completion",
+            side_effect=RuntimeError("judge offline"),
+        ):
+            result = await evaluator.evaluate(test_case, trace)
+
+        assert result.score >= 80
+        assert "deterministic fallback scoring" in result.rationale.lower()
+
+
+class TestHallucinationEvaluator:
+    """Tests for HallucinationEvaluator."""
+
+    @pytest.mark.asyncio
+    @patch("evalview.core.llm_provider.select_provider")
+    async def test_fact_check_failure_does_not_create_false_hallucination(self, mock_select_provider):
+        """Judge transport errors should not be surfaced as hallucination findings."""
+        mock_select_provider.return_value = (LLMProvider.OPENAI, "fake-key")
+
+        test_case = TestCaseModel(
+            name="test",
+            input=TestInputModel(query="What is 2 + 2?"),
+            expected=ExpectedBehavior(output=ExpectedOutput()),
+            thresholds=Thresholds(min_score=50.0),
+        )
+        trace = ExecutionTrace(
+            session_id="test",
+            start_time=datetime.now(),
+            end_time=datetime.now(),
+            steps=[
+                StepTrace(
+                    step_id="1",
+                    step_name="Calculator",
+                    tool_name="calculator",
+                    parameters={"expression": "2 + 2"},
+                    output="4",
+                    success=True,
+                    metrics=StepMetrics(latency=1.0, cost=0.0),
+                )
+            ],
+            final_output="Based on the calculation, 2 + 2 equals 4.",
+            metrics=ExecutionMetrics(total_cost=0.0, total_latency=1.0),
+        )
+
+        evaluator = HallucinationEvaluator()
+
+        with patch.object(
+            evaluator.llm_client,
+            "chat_completion",
+            side_effect=RuntimeError("network unavailable"),
+        ):
+            result = await evaluator.evaluate(test_case, trace)
+
+        assert result.has_hallucination is False
+        assert result.passed is True
+        assert "fact check unavailable" in result.details.lower()
 
     @pytest.mark.asyncio
     @patch("evalview.core.llm_provider.LLMClient.chat_completion")

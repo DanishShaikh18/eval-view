@@ -10,7 +10,7 @@ import json
 import os
 import uuid
 from dataclasses import dataclass, field, asdict
-from datetime import datetime
+from datetime import UTC, datetime
 from pathlib import Path
 
 # Environment variable to disable telemetry (always wins)
@@ -24,6 +24,11 @@ CONFIG_FILE = CONFIG_DIR / "telemetry.json"
 SCHEMA_VERSION = 1
 
 
+def _utc_now_iso() -> str:
+    """Return an ISO8601 UTC timestamp."""
+    return datetime.now(UTC).isoformat().replace("+00:00", "Z")
+
+
 @dataclass
 class TelemetryConfig:
     """Telemetry configuration."""
@@ -32,7 +37,7 @@ class TelemetryConfig:
     enabled: bool = True
     install_id: str = field(default_factory=lambda: str(uuid.uuid4()))
     first_run_notice_shown: bool = False
-    created_at: str = field(default_factory=lambda: datetime.utcnow().isoformat() + "Z")
+    created_at: str = field(default_factory=_utc_now_iso)
     # True after posthog.identify() has been called for this install.
     # Prevents re-sending person properties on every command.
     identified: bool = False
@@ -50,7 +55,7 @@ class TelemetryConfig:
             enabled=data.get("enabled", True),
             install_id=data.get("install_id", str(uuid.uuid4())),
             first_run_notice_shown=data.get("first_run_notice_shown", False),
-            created_at=data.get("created_at", datetime.utcnow().isoformat() + "Z"),
+            created_at=data.get("created_at", _utc_now_iso()),
             identified=data.get("identified", False),
         )
 

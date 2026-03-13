@@ -432,7 +432,7 @@ class OpenAIAssistantsAdapter(AgentAdapter):
                 existing_lines = f.readlines()
 
         # Remove existing OPENAI_ASSISTANT_ID line if present
-        new_lines = [l for l in existing_lines if not l.startswith("OPENAI_ASSISTANT_ID=")]
+        new_lines = [line for line in existing_lines if not line.startswith("OPENAI_ASSISTANT_ID=")]
 
         # Ensure last line ends with newline
         if new_lines and not new_lines[-1].endswith("\n"):

@@ -1,21 +1,17 @@
 """Tests for evalview/pytest_plugin.py."""
 
-import shutil
-import tempfile
 from datetime import datetime
-from pathlib import Path
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
 from evalview.core.diff import DiffStatus, TraceDiff
-from evalview.core.golden import GoldenStore, GoldenMetadata, GoldenTrace
+from evalview.core.golden import GoldenStore, GoldenTrace
 from evalview.core.types import ExecutionTrace, ExecutionMetrics
 
 
 def _make_golden(test_name: str, store: GoldenStore) -> GoldenTrace:
     """Write a minimal golden trace to the store and return it."""
-    from evalview.core.types import EvaluationResult, Evaluations, ToolEvaluation, SequenceEvaluation, OutputEvaluation, ContainsChecks
 
     trace = ExecutionTrace(
         session_id="s1",
@@ -63,10 +59,6 @@ class TestEvalviewCheckFixture:
 
     def test_skips_when_no_golden(self, golden_store):
         """evalview_check should skip (not fail) when no baseline exists."""
-        from evalview.pytest_plugin import evalview_check as make_check
-
-        # Simulate what pytest does: call the fixture factory with the store
-        check_fn = None
 
         # Build the fixture closure directly
         def fake_request():
@@ -78,7 +70,6 @@ class TestEvalviewCheckFixture:
 
         with patch("pytest.skip", side_effect=lambda msg: called_skip.append(msg)):
             # Manually build the fixture closure
-            from evalview.core.diff import DiffEngine
 
             def _check(test_name, test_path=None, config_path=None):
                 variants = golden_store.load_all_golden_variants(test_name)
@@ -119,7 +110,7 @@ class TestEvalviewCheckFixture:
         """model_sensitive marker should trigger a warning log when model changed."""
         import logging
 
-        golden = _make_golden("my-test", golden_store)
+        _make_golden("my-test", golden_store)
 
         # Simulate a TraceDiff where model changed
         diff = TraceDiff(

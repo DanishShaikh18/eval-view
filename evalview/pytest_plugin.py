@@ -36,7 +36,7 @@ from typing import Optional
 
 import pytest
 
-from evalview.core.diff import DiffEngine, DiffStatus, TraceDiff
+from evalview.core.diff import DiffEngine, TraceDiff
 from evalview.core.golden import GoldenStore
 
 logger = logging.getLogger(__name__)

@@ -1,9 +1,8 @@
 """Tests for the Evaluator orchestrator (evalview.evaluators.evaluator)."""
 
-import json
 import pytest
 from datetime import datetime
-from unittest.mock import patch, MagicMock, AsyncMock
+from unittest.mock import patch
 from typing import List, Optional
 
 from evalview.core.types import (
@@ -16,7 +15,6 @@ from evalview.core.types import (
     ExecutionMetrics,
     StepTrace,
     StepMetrics,
-    TokenUsage,
     ExpectedOutput,
     ChecksConfig,
 )
@@ -235,7 +233,6 @@ class TestPerTestWeightOverrides:
 
     @pytest.mark.asyncio
     async def test_invalid_weights_sum_raises(self):
-        ev = Evaluator(skip_llm_judge=True)
         with pytest.raises(Exception):
             ScoringWeights(tool_accuracy=0.5, output_quality=0.5, sequence_correctness=0.5)
 

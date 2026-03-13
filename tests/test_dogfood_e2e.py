@@ -11,10 +11,11 @@ correctly identifies good vs bad agent behavior.
 
 import os
 import signal
+import socket
 import subprocess
 import sys
 import time
-from typing import Generator
+from typing import Generator, Tuple
 
 import pytest
 
@@ -37,17 +38,32 @@ from evalview.evaluators.sequence_evaluator import SequenceEvaluator
 
 
 @pytest.fixture(scope="module")
-def mock_agent() -> Generator[subprocess.Popen, None, None]:
+def mock_agent() -> Generator[Tuple[subprocess.Popen, int], None, None]:
     """Start the mock agent server for testing."""
-    # Start mock agent
+    def _find_free_port() -> int:
+        try:
+            with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
+                sock.bind(("127.0.0.1", 0))
+                sock.listen(1)
+                return sock.getsockname()[1]
+        except PermissionError:
+            pytest.skip("Socket binding is not permitted in this environment")
+
     agent_path = os.path.join(
         os.path.dirname(os.path.dirname(__file__)), "dogfood", "mock_agent.py"
     )
+    port = _find_free_port()
+    env = {
+        **os.environ,
+        "EVALVIEW_DOGFOOD_HOST": "127.0.0.1",
+        "EVALVIEW_DOGFOOD_PORT": str(port),
+    }
 
     proc = subprocess.Popen(
         [sys.executable, agent_path],
         stdout=subprocess.PIPE,
         stderr=subprocess.PIPE,
+        env=env,
     )
 
     # Wait for agent to be ready
@@ -55,7 +71,7 @@ def mock_agent() -> Generator[subprocess.Popen, None, None]:
 
     for _ in range(30):
         try:
-            response = httpx.get("http://localhost:8002/health", timeout=1.0)
+            response = httpx.get(f"http://127.0.0.1:{port}/health", timeout=1.0)
             if response.status_code == 200:
                 break
         except Exception:
@@ -65,9 +81,12 @@ def mock_agent() -> Generator[subprocess.Popen, None, None]:
         # Capture stderr for debugging
         proc.kill()
         _, stderr = proc.communicate(timeout=5)
-        raise RuntimeError(f"Mock agent failed to start. stderr: {stderr.decode()}")
+        stderr_text = stderr.decode()
+        if "operation not permitted" in stderr_text.lower():
+            pytest.skip("Socket binding is not permitted in this environment")
+        raise RuntimeError(f"Mock agent failed to start. stderr: {stderr_text}")
 
-    yield proc
+    yield proc, port
 
     # Cleanup
     proc.send_signal(signal.SIGTERM)
@@ -75,10 +94,11 @@ def mock_agent() -> Generator[subprocess.Popen, None, None]:
 
 
 @pytest.fixture
-def adapter() -> HTTPAdapter:
+def adapter(mock_agent) -> HTTPAdapter:
     """Create HTTP adapter for mock agent."""
+    _, port = mock_agent
     return HTTPAdapter(
-        endpoint="http://localhost:8002/execute",
+        endpoint=f"http://127.0.0.1:{port}/execute",
         allow_private_urls=True,  # Allow localhost for testing
     )
 

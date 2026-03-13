@@ -15,7 +15,6 @@ from evalview.skills.agent_types import (
     DeterministicEvaluation,
     DeterministicExpected,
     RubricConfig,
-    RubricEvaluation,
     SkillAgentTest,
     SkillAgentTestResult,
     SkillAgentTestSuite,

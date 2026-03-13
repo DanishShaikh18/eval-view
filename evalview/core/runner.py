@@ -18,6 +18,7 @@ from typing import Optional, Tuple
 
 import yaml  # type: ignore[import-untyped]
 
+from evalview.core.adapter_factory import create_adapter_from_config
 from evalview.core.config import EvalViewConfig
 from evalview.core.diff import DiffEngine, TraceDiff
 from evalview.core.golden import GoldenStore
@@ -45,55 +46,8 @@ def _load_config(config_path: Optional[Path] = None) -> Optional[EvalViewConfig]
 
 
 def _create_adapter(config: EvalViewConfig):
-    """Create an agent adapter from config.
-
-    Mirrors the _create_adapter() factory in cli.py. Kept in sync manually —
-    if you add an adapter to the CLI factory, add it here too.
-
-    Args:
-        config: EvalViewConfig with adapter type and endpoint.
-
-    Returns:
-        AgentAdapter instance.
-
-    Raises:
-        ValueError: If adapter type is unknown.
-    """
-    from evalview.adapters.crewai_adapter import CrewAIAdapter
-    from evalview.adapters.http_adapter import HTTPAdapter
-    from evalview.adapters.langgraph_adapter import LangGraphAdapter
-    from evalview.adapters.openai_assistants_adapter import OpenAIAssistantsAdapter
-    from evalview.adapters.tapescope_adapter import TapeScopeAdapter
-
-    # Keep in sync with cli.py:_create_adapter().
-    # Note: AnthropicAdapter is not included here because it is used
-    # programmatically (not via .evalview/config.yaml). Use adapter: http
-    # with a compatible endpoint for Anthropic-backed agents in config files.
-    adapter_map = {
-        "http": HTTPAdapter,
-        "langgraph": LangGraphAdapter,
-        "tapescope": TapeScopeAdapter,
-        "crewai": CrewAIAdapter,
-        "openai": OpenAIAssistantsAdapter,
-    }
-
-    adapter_class = adapter_map.get(config.adapter)
-    if not adapter_class:
-        raise ValueError(
-            f"Unknown adapter type: '{config.adapter}'. "
-            f"Supported: {', '.join(adapter_map.keys())}"
-        )
-
-    timeout = getattr(config, "timeout", 30.0)
-    allow_private = getattr(config, "allow_private_urls", True)
-
-    if config.adapter == "http":
-        return adapter_class(
-            endpoint=config.endpoint,
-            timeout=timeout,
-            allow_private_urls=allow_private,
-        )
-    return adapter_class(endpoint=config.endpoint, timeout=timeout)
+    """Create an agent adapter from config."""
+    return create_adapter_from_config(config)
 
 
 async def run_single_test(

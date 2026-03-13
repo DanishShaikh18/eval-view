@@ -3,9 +3,9 @@ EvalView Dogfood Agent - Wraps EvalView chat mode as an HTTP agent.
 This allows testing EvalView with EvalView itself.
 """
 
-import asyncio
 import os
 import subprocess
+import sys
 import time
 from typing import Any, Dict, List, Optional
 
@@ -14,16 +14,13 @@ from dotenv import load_dotenv
 
 load_dotenv(".env.local")
 
-from fastapi import FastAPI
-from pydantic import BaseModel
-
-# Import EvalView chat internals
-import sys
-
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from evalview.chat import ChatSession, extract_commands, SYSTEM_PROMPT
-from evalview.core.llm_provider import LLMProvider, detect_available_providers
+from fastapi import FastAPI  # noqa: E402
+from pydantic import BaseModel  # noqa: E402
+
+from evalview.chat import ChatSession, extract_commands  # noqa: E402
+from evalview.core.llm_provider import LLMProvider, detect_available_providers  # noqa: E402
 
 app = FastAPI(title="EvalView Dogfood Agent")
 
@@ -128,8 +125,6 @@ async def execute(request: ExecuteRequest):
     response_text = ""
     async for chunk in chat.stream_response(query):
         response_text += chunk
-
-    llm_latency = (time.time() - start) * 1000
 
     # Extract and execute any evalview commands
     commands = extract_commands(response_text)

@@ -85,7 +85,7 @@ def _save_captures_as_tests(captures: List[Dict[str, Any]], output_dir: Path) ->
 
         lines = [
             f'name: "capture-{idx:02d}"',
-            f'description: "Real interaction captured by evalview capture"',
+            'description: "Real interaction captured by evalview capture"',
             "",
             "input:",
             f'  query: "{_escape_yaml_str(query)}"',

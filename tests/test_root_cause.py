@@ -1,6 +1,5 @@
 """Unit tests for root cause attribution."""
 
-from datetime import datetime
 from typing import List, Optional
 from unittest.mock import AsyncMock, patch
 
@@ -15,7 +14,6 @@ from evalview.core.diff import (
 )
 from evalview.core.root_cause import (
     Confidence,
-    RootCauseAnalysis,
     RootCauseCategory,
     analyze_root_cause,
     enrich_with_ai,
@@ -791,7 +789,6 @@ class TestSlackNotifierRootCause:
     @pytest.mark.asyncio
     async def test_tools_changed_alert_includes_root_cause(self):
         """TOOLS_CHANGED alerts should also include root cause."""
-        from evalview.core.slack_notifier import SlackNotifier
         from evalview.core.root_cause import analyze_root_cause
 
         diff = _make_trace_diff(

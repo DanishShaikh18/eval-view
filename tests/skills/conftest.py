@@ -16,7 +16,6 @@ Usage:
 """
 
 from datetime import datetime, timedelta
-from typing import Any, Dict, List
 from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 
@@ -365,7 +364,6 @@ def mock_async_subprocess():
 
     Returns stream-json format (JSONL) that matches Claude Code CLI output.
     """
-    import asyncio
 
     async def create_mock_process(*args, **kwargs):
         mock_process = AsyncMock()
@@ -419,7 +417,6 @@ def mock_claude_popen():
     to temp files passed as stdout/stderr handles, then reads them back.
     This fixture mimics that by writing JSONL output to the stdout handle.
     """
-    import subprocess as _subprocess
 
     jsonl_output = (
         b'{"type": "assistant", "message": {"content": [{"type": "text", "text": "Task completed."}]}}\n'

@@ -517,7 +517,7 @@ class MCPServer:
 
         try:
             with open(results_file, encoding="utf-8") as f:
-                raw = _json.load(f)
+                _json.load(f)
         except Exception as exc:
             return f"Failed to load results: {exc}"
 

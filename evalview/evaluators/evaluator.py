@@ -6,6 +6,24 @@ import re as _re
 from datetime import datetime
 from typing import Any, Dict, List, Optional, Tuple, TYPE_CHECKING
 
+from evalview.core.config import ScoringWeights, DEFAULT_WEIGHTS
+from evalview.core.types import (
+    TestCase,
+    ExecutionTrace,
+    EvaluationResult,
+    Evaluations,
+    OutputEvaluation,
+    ContainsChecks,
+)
+from evalview.evaluators.cost_evaluator import CostEvaluator
+from evalview.evaluators.hallucination_evaluator import HallucinationEvaluator
+from evalview.evaluators.latency_evaluator import LatencyEvaluator
+from evalview.evaluators.output_evaluator import OutputEvaluator
+from evalview.evaluators.pii_evaluator import PIIEvaluator
+from evalview.evaluators.safety_evaluator import SafetyEvaluator
+from evalview.evaluators.sequence_evaluator import SequenceEvaluator
+from evalview.evaluators.tool_call_evaluator import ToolCallEvaluator
+
 # ---------------------------------------------------------------------------
 # Deterministic output scoring weights (must sum to 100)
 # ---------------------------------------------------------------------------
@@ -21,24 +39,6 @@ _DETO_JSON_SCHEMA_WEIGHT: float = 10.0   # % score for JSON schema validation
 _DETO_SCORE_CAP: float = 75.0           # max score; signals "approximate"
 _DETO_MIN_OUTPUT_LENGTH: int = 10        # chars below which output is "short"
 _DETO_MIN_QUERY_WORD_LENGTH: int = 3     # minimum chars to treat as a keyword
-
-from evalview.core.types import (
-    TestCase,
-    ExecutionTrace,
-    EvaluationResult,
-    Evaluations,
-    OutputEvaluation,
-    ContainsChecks,
-)
-from evalview.core.config import ScoringWeights, DEFAULT_WEIGHTS
-from evalview.evaluators.tool_call_evaluator import ToolCallEvaluator
-from evalview.evaluators.sequence_evaluator import SequenceEvaluator
-from evalview.evaluators.output_evaluator import OutputEvaluator
-from evalview.evaluators.cost_evaluator import CostEvaluator
-from evalview.evaluators.latency_evaluator import LatencyEvaluator
-from evalview.evaluators.hallucination_evaluator import HallucinationEvaluator
-from evalview.evaluators.safety_evaluator import SafetyEvaluator
-from evalview.evaluators.pii_evaluator import PIIEvaluator
 
 if TYPE_CHECKING:
     from evalview.core.judge_cache import JudgeCache
@@ -370,7 +370,6 @@ class Evaluator:
         Returns the parsed object, or None if no valid JSON is found.
         """
         in_string = False
-        escape_next = False
         for i, ch in enumerate(text):
             if ch != '{' or in_string:
                 continue

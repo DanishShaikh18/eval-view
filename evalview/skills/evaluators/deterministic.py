@@ -837,8 +837,6 @@ class DeterministicEvaluator:
             DeterministicCheckResult with pass/fail status
         """
         check_name = f"smoke_test[{smoke_test.command[:25]}...]" if len(smoke_test.command) > 25 else f"smoke_test[{smoke_test.command}]"
-        process: Optional[subprocess.Popen[str]] = None
-
         try:
             if smoke_test.background:
                 # Run in background and wait for specific output or health check

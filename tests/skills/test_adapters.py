@@ -7,11 +7,9 @@ concrete adapter implementations.
 import asyncio
 import json
 import os
-import subprocess
-from datetime import datetime
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Tuple
-from unittest.mock import AsyncMock, MagicMock, patch
+from typing import List, Optional
+from unittest.mock import MagicMock, patch
 import pytest
 
 from evalview.skills.agent_types import AgentConfig, AgentType, SkillAgentTrace
@@ -24,9 +22,8 @@ from evalview.skills.adapters.base import (
     AgentNotFoundError,
     AgentTimeoutError,
     _MAX_OUTPUT_SIZE,
-    _SENSITIVE_ENV_PATTERNS,
 )
-from evalview.skills.adapters.registry import SkillAdapterRegistry, get_skill_adapter
+from evalview.skills.adapters.registry import SkillAdapterRegistry
 
 
 # =============================================================================
@@ -564,9 +561,6 @@ class TestGetSkillAdapterFunction:
 
     def test_get_skill_adapter_creates_instance(self):
         """Convenience function creates adapter instance."""
-        # Use system-prompt adapter which doesn't need external tools
-        config = AgentConfig(type=AgentType.SYSTEM_PROMPT)
-
         # System prompt type may not have an adapter, so use a registered one
         # Just verify the registry lookup works
         SkillAdapterRegistry._ensure_initialized()
@@ -631,7 +625,7 @@ class TestClaudeCodeAdapter:
         # Mock shutil.which to return a fake path
         with patch("shutil.which", return_value="/usr/bin/claude"):
             adapter = ClaudeCodeAdapter(config)
-            trace = await adapter.execute(skill, "Test query")
+            await adapter.execute(skill, "Test query")
 
         mock_claude_popen.assert_called_once()
 

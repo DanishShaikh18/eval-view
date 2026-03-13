@@ -97,7 +97,7 @@ def feedback(category: str) -> None:
     url = _build_url(category, f"[{category}] {title}", body)
 
     console.print()
-    console.print(f"[green]Opening GitHub...[/green]")
+    console.print("[green]Opening GitHub...[/green]")
     webbrowser.open(url)
     console.print("[dim]If the browser didn't open, copy this URL:[/dim]")
     console.print(f"[dim]{url}[/dim]")

@@ -11,6 +11,7 @@ import click
 from rich.panel import Panel
 from rich.table import Table
 
+from evalview.commands.skill_agent_runner import run_agent_skill_test
 from evalview.commands.shared import console
 from evalview.skills.constants import (
     AVG_CHARS_PER_SKILL,
@@ -25,16 +26,6 @@ from evalview.skills.constants import (
     TRUNCATE_OUTPUT_SHORT,
 )
 from evalview.skills.ui_utils import print_evalview_banner
-from evalview.skills.test_helpers import (
-    build_results_table,
-    build_summary_panel,
-    format_results_as_json,
-    handle_test_completion,
-    load_test_suite,
-    print_detailed_test_results,
-    print_suite_info,
-    validate_and_parse_agent_type,
-)
 from evalview.telemetry.decorators import track_command
 
 
@@ -445,88 +436,6 @@ def skill_doctor(path: str, recursive: bool, security_scan: bool) -> None:
 
 
 # ---------------------------------------------------------------------------
-# _run_agent_skill_test (internal helper)
-# ---------------------------------------------------------------------------
-
-def _run_agent_skill_test(
-    test_file: str,
-    agent: str,
-    trace_dir: str,
-    no_rubric: bool,
-    cwd: str,
-    max_turns: int,
-    verbose: bool,
-    output_json: bool,
-    model: str,
-) -> None:
-    """Run agent-based skill tests (internal helper)."""
-    agent_type_enum = validate_and_parse_agent_type(agent, console)
-
-    suite, runner = load_test_suite(
-        test_file, agent_type_enum, trace_dir,
-        no_rubric, cwd, max_turns, verbose, model,
-        console,
-    )
-
-    print_evalview_banner(console, subtitle="[dim]Agent-Based Skill Testing[/dim]")
-    print_suite_info(suite, trace_dir, console)
-
-    start_time = time.time()
-    total_tests = len(suite.tests)
-    completed_count = [0]
-
-    console.print(f"[cyan]Running {total_tests} tests in parallel...[/cyan]\n")
-
-    def on_test_complete(test_result: Any) -> None:
-        completed_count[0] += 1
-        icon = "[green]✓[/green]" if test_result.passed else "[red]✗[/red]"
-        score_str = f"[dim]{test_result.score:.0f}%[/dim]"
-        latency_str = f"[dim]{test_result.latency_ms / 1000:.1f}s[/dim]"
-        console.print(
-            f"  {icon} [{completed_count[0]}/{total_tests}] "
-            f"[bold]{test_result.test_name}[/bold]  {score_str}  {latency_str}"
-        )
-
-    run_error = None
-    result = None
-    try:
-        loop = asyncio.new_event_loop()
-        try:
-            result = loop.run_until_complete(
-                runner.run_suite(suite, on_test_complete=on_test_complete)
-            )
-        finally:
-            loop.close()
-    except Exception as exc:
-        run_error = exc
-
-    console.print()
-
-    if run_error:
-        console.print(f"[red]Error running tests: {run_error}[/red]")
-        raise SystemExit(1)
-
-    assert result is not None  # guarded by the SystemExit above
-    elapsed_ms = (time.time() - start_time) * 1000
-
-    if output_json:
-        json_output = format_results_as_json(result)
-        console.print(json.dumps(json_output, indent=2))
-        return
-
-    table = build_results_table(result)
-    console.print(table)
-    console.print()
-
-    print_detailed_test_results(result, verbose, console)
-
-    summary_panel = build_summary_panel(result, elapsed_ms)
-    console.print(summary_panel)
-
-    handle_test_completion(result, test_file, suite, console)
-
-
-# ---------------------------------------------------------------------------
 # skill test
 # ---------------------------------------------------------------------------
 
@@ -613,7 +522,7 @@ def skill_test(
     )
 
     if use_agent_mode:
-        _run_agent_skill_test(
+        run_agent_skill_test(
             test_file=test_file,
             agent=agent,
             trace_dir=trace,

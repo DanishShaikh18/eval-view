@@ -7,8 +7,13 @@ import os
 import platform
 import sys
 from dataclasses import dataclass, field, asdict
-from datetime import datetime
+from datetime import UTC, datetime
 from typing import Optional, Dict, Any
+
+
+def _utc_now_iso() -> str:
+    """Return an ISO8601 UTC timestamp."""
+    return datetime.now(UTC).isoformat().replace("+00:00", "Z")
 
 
 def _detect_github_repo() -> Optional[str]:
@@ -78,7 +83,7 @@ class BaseEvent:
     """Base event with common fields."""
 
     event_type: str
-    timestamp: str = field(default_factory=lambda: datetime.utcnow().isoformat() + "Z")
+    timestamp: str = field(default_factory=_utc_now_iso)
     os_info: str = field(default_factory=_get_os_info)
     python_version: str = field(default_factory=_get_python_version)
     ci_environment: str = field(default_factory=_detect_ci_environment)

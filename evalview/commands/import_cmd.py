@@ -110,4 +110,4 @@ def import_logs(
     written = entries_to_yaml(entries, out, name_prefix=prefix)
 
     console.print(f"[green]✓ {len(written)} test cases written to {out}/[/green]")
-    console.print(f"[dim]Next: evalview snapshot   (capture baseline)[/dim]\n")
+    console.print("[dim]Next: evalview snapshot   (capture baseline)[/dim]\n")

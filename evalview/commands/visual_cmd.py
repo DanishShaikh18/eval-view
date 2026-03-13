@@ -4,7 +4,6 @@ from __future__ import annotations
 import asyncio
 import os
 import re
-import sys
 from datetime import datetime
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
@@ -17,7 +16,6 @@ from rich.table import Table
 from evalview.commands.shared import (
     console,
     _create_adapter,
-    _load_config_if_exists,
 )
 from evalview.telemetry.decorators import track_command
 
@@ -233,7 +231,7 @@ async def _compare_async(
     tests_dir = Path(tests_path)
     if not tests_dir.exists():
         console.print(f"[red]❌ Tests directory not found: {tests_path}[/red]")
-        console.print(f"[dim]Tip: use --tests to specify a different directory[/dim]")
+        console.print("[dim]Tip: use --tests to specify a different directory[/dim]")
         return
 
     test_cases = TestCaseLoader.load_from_directory(tests_dir, "*.yaml")

@@ -1,6 +1,5 @@
 """Unit tests for message generation and rotation."""
 
-import pytest
 from evalview.core.messages import (
     get_random_checking_message,
     get_random_clean_check_message,

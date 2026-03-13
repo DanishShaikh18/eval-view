@@ -2,7 +2,6 @@
 
 import io
 from unittest.mock import patch
-import pytest
 
 from evalview.core.celebrations import (
     Celebrations,

@@ -24,7 +24,7 @@ from evalview.core.types import (
     ExecutionTrace,
     ExecutionMetrics,
 )
-from evalview.evaluators.evaluator import Evaluator, _RegexTimeoutError
+from evalview.evaluators.evaluator import Evaluator
 
 
 # ============================================================================

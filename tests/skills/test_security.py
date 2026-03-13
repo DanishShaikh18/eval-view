@@ -17,12 +17,9 @@ Each category has both a "must catch" (positive detection) test and a
 "must not false-positive" (benign case) test.
 """
 
-import json
-import os
-import re
 from datetime import datetime, timedelta
 from typing import List, Optional
-from unittest.mock import MagicMock, patch
+from unittest.mock import patch
 
 import pytest
 
@@ -37,7 +34,6 @@ from evalview.skills.adapters.base import (
     SkillAgentAdapterError,
 )
 from evalview.skills.evaluators.deterministic import DeterministicEvaluator
-from evalview.skills.types import Skill, SkillMetadata
 
 
 # ---------------------------------------------------------------------------
@@ -511,7 +507,6 @@ class TestEnvironmentSanitisation:
     """CLIAgentAdapter must filter secrets from subprocess environment."""
 
     def test_api_keys_filtered(self):
-        from pathlib import Path
 
         class _Stub(CLIAgentAdapter):
             @property

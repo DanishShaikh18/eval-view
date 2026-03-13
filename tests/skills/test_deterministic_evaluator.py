@@ -8,7 +8,6 @@ Comprehensive tests for Phase 1 deterministic checks including:
 """
 
 from datetime import datetime, timedelta
-from pathlib import Path
 import pytest
 
 from evalview.skills.agent_types import (

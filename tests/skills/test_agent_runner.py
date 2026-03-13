@@ -6,16 +6,12 @@ Tests for SkillAgentRunner that orchestrates test execution.
 import json
 from datetime import datetime, timedelta
 from pathlib import Path
-from typing import Any, Dict
 from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 import yaml
 
 from evalview.skills.agent_types import (
-    AgentConfig,
     AgentType,
-    DeterministicExpected,
-    SkillAgentTest,
     SkillAgentTestSuite,
     SkillAgentTestResult,
     SkillAgentTestSuiteResult,
@@ -333,7 +329,7 @@ class TestSkillAgentRunnerTraces:
                 "evalview.skills.agent_runner.SkillParser.parse_file",
                 return_value=mock_skill,
             ):
-                result = await runner_with_trace_dir.run_suite(sample_test_suite)
+                await runner_with_trace_dir.run_suite(sample_test_suite)
 
         # Check trace files exist
         trace_dir = Path(runner_with_trace_dir.trace_dir)

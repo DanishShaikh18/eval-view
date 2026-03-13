@@ -6,9 +6,10 @@ Covers:
 - Evaluator hard-fail on forbidden tool violations
 - HTML reporter span serialisation (with and without TraceContext)
 """
+from __future__ import annotations
+
 import pytest
 from datetime import datetime
-from unittest.mock import patch
 
 from evalview.core.types import (
     TestCase as TestCaseModel,
@@ -267,7 +268,7 @@ class TestEvaluatorForbiddenHardFail:
         test_case = _make_test_case(forbidden=["edit_file"], tools=None)
         # Agent calls edit_file, gets a high output score regardless.
         trace = _make_trace("search", "edit_file")
-        trace.final_output = "Great answer with full detail."  # noqa: not a field, just test data
+        trace.final_output = "Great answer with full detail."
 
         result = await evaluator.evaluate(test_case, trace)
 
@@ -282,7 +283,7 @@ class TestEvaluatorForbiddenHardFail:
 class TestHTMLReporterSpanSerialisation:
     """Unit tests for HTMLReporter._serialize_spans."""
 
-    def _make_result_with_trace_context(self) -> "EvaluationResult":
+    def _make_result_with_trace_context(self):
         from evalview.core.types import (
             EvaluationResult,
             Evaluations,

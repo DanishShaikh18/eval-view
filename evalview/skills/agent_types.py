@@ -47,6 +47,8 @@ class TestCategory(str, Enum):
     - NEGATIVE: Prompts that should NOT trigger the skill
     """
 
+    __test__ = False
+
     EXPLICIT = "explicit"
     IMPLICIT = "implicit"
     CONTEXTUAL = "contextual"

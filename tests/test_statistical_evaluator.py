@@ -5,7 +5,6 @@ from datetime import datetime
 
 from evalview.core.types import (
     VarianceConfig,
-    StatisticalMetrics,
     TestCase,
     TestInput,
     ExpectedBehavior,

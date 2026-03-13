@@ -1,13 +1,12 @@
 """Unit tests for golden trace storage and variant management."""
 
-import json
 import tempfile
 import shutil
 from pathlib import Path
 from datetime import datetime
 import pytest
 
-from evalview.core.golden import GoldenStore, GoldenTrace, GoldenMetadata
+from evalview.core.golden import GoldenStore
 from evalview.core.types import (
     EvaluationResult,
     ExecutionTrace,

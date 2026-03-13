@@ -192,7 +192,7 @@ def check(test_path: str, test: str, json_output: bool, fail_on: str, strict: bo
 
     # Dry-run mode — show plan and exit
     if dry_run:
-        golden_names = set(goldens)
+        golden_names = {golden.test_name for golden in goldens}
         tests_with_baselines = sum(1 for tc in test_cases if tc.name in golden_names)
         if not json_output:
             console.print(f"  Tests:          {len(test_cases)}")

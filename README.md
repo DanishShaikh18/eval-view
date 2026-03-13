@@ -72,6 +72,16 @@ evalview monitor                                         # 4. Watch continuously
 # ✅ All clean — or ❌ REGRESSION: score 85 → 71
 ```
 
+### Start Here
+
+Choose the shortest path for your use case:
+
+- New project: `evalview capture --agent ...` → `evalview snapshot` → `evalview check`
+- Existing tests, no baselines yet: `evalview snapshot`
+- CI gate for regressions: [Golden Traces](docs/GOLDEN_TRACES.md) and [CI/CD Integration](docs/CI_CD.md)
+- Framework-specific setup: [Framework Support](docs/FRAMEWORK_SUPPORT.md)
+- Skill testing for Claude Code / Codex / OpenClaw: [Skills Testing](docs/SKILLS_TESTING.md)
+
 Works with **LangGraph, CrewAI, OpenAI, Claude, Mistral, HuggingFace, Ollama, and any HTTP API**.
 
 ```bash
@@ -79,6 +89,7 @@ pip install evalview && evalview demo   # ~30 seconds, no API key needed
 ```
 
 [Full Quick Start guide →](#quick-start)
+[Documentation index →](docs/README.md)
 
 <details>
 <summary><strong>See it in action</strong> (CLI demo)</summary>

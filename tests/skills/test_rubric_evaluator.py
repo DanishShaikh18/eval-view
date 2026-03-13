@@ -4,8 +4,7 @@ Tests Phase 2 rubric evaluation with mocked LLM responses.
 """
 
 from datetime import datetime, timedelta
-from typing import Any, Dict
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock, patch
 import pytest
 
 from evalview.skills.agent_types import (

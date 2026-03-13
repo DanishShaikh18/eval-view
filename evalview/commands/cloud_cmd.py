@@ -93,8 +93,8 @@ if (at) {
     httpd = HTTPServer(("127.0.0.1", port), _CallbackHandler)
     httpd.timeout = 300  # 5 minutes
 
-    console.print(f"\n[cyan]Opening GitHub in your browser...[/cyan]")
-    console.print(f"[dim]If the browser doesn't open, visit:[/dim]")
+    console.print("\n[cyan]Opening GitHub in your browser...[/cyan]")
+    console.print("[dim]If the browser doesn't open, visit:[/dim]")
     console.print(f"[dim]{auth_url}[/dim]\n")
 
     webbrowser.open(auth_url)

@@ -97,7 +97,7 @@ def _run_monitor_loop(
     console.print(f"\n[cyan]{get_random_monitor_start_message()}[/cyan]")
     history_hint = f"  |  History: {history_path}" if history_path else ""
     console.print(f"[dim]  Tests: {len(test_cases)}  |  Interval: {interval}s  |  Slack: {'✓' if notifier else '—'}{history_hint}[/dim]")
-    console.print(f"[dim]  Press Ctrl+C to stop.[/dim]\n")
+    console.print("[dim]  Press Ctrl+C to stop.[/dim]\n")
 
     # Track state across cycles
     previously_failing: Set[str] = set()

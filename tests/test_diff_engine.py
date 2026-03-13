@@ -6,8 +6,8 @@ from pathlib import Path
 from datetime import datetime
 import pytest
 
-from evalview.core.diff import DiffEngine, ParameterDiff, DiffStatus
-from evalview.core.golden import GoldenStore, GoldenTrace, GoldenMetadata
+from evalview.core.diff import DiffEngine, DiffStatus
+from evalview.core.golden import GoldenTrace, GoldenMetadata
 from evalview.core.config import DiffConfig
 from evalview.core.types import (
     ExecutionTrace,

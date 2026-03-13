@@ -417,8 +417,6 @@ class TestMonitorLoop:
 
         # Track Slack calls
         slack_calls = []
-        original_run = asyncio.run
-
         async def fake_send_regression(self_notifier, diffs, analysis):
             slack_calls.append(("regression", [n for n, _ in diffs]))
             return True
@@ -429,7 +427,6 @@ class TestMonitorLoop:
 
         # Make the loop stop after 4 cycles by setting shutdown on cycle 4
         cycle_stop = {"n": 0}
-        original_sleep = _sleep_interruptible
 
         def mock_sleep(seconds, should_stop):
             cycle_stop["n"] += 1
@@ -443,11 +440,6 @@ class TestMonitorLoop:
             patch.object(SlackNotifier, "send_recovery_alert", fake_send_recovery),
             patch("evalview.commands.monitor_cmd.signal"),
         ):
-            # Patch shutdown to trigger after 4 cycles
-            import evalview.commands.monitor_cmd as mod
-
-            original_run_loop = mod._run_monitor_loop
-
             def patched_loop(**kwargs):
                 # We need to make shutdown=True after 4 cycles
                 # Easiest: patch the while loop via _sleep_interruptible counting
@@ -479,7 +471,6 @@ class TestMonitorLoop:
         call_count["n"] = 0
 
         # Simulate the monitor loop logic directly (same as _run_monitor_loop internals)
-        from evalview.commands.monitor_cmd import _resolve_slack_webhook
 
         previously_failing: Set[str] = set()
         fail_statuses = {DiffStatus.REGRESSION}
@@ -533,7 +524,6 @@ class TestMonitorLoop:
         diff_regression = _make_diff("REGRESSION", score_diff=-10.0)
         diff_passed = _make_diff("PASSED")
 
-        from evalview.commands.shared import _analyze_check_diffs
 
         # Simulate: regression then recovery, no webhook
         previously_failing: Set[str] = set()
@@ -687,7 +677,7 @@ class TestAppendHistory:
         _append_history(history_path, {"cycle": 1})
         _append_history(history_path, {"cycle": 2})
         _append_history(history_path, {"cycle": 3})
-        lines = [l for l in history_path.read_text().strip().split("\n") if l]
+        lines = [line for line in history_path.read_text().strip().split("\n") if line]
         assert len(lines) == 3
         assert json.loads(lines[0])["cycle"] == 1
         assert json.loads(lines[2])["cycle"] == 3
@@ -722,7 +712,7 @@ class TestAppendHistory:
         history_path = tmp_path / "history.jsonl"
         history_path.write_text('{"cycle": 0, "pre_existing": true}\n')
         _append_history(history_path, {"cycle": 1})
-        lines = [l for l in history_path.read_text().strip().split("\n") if l]
+        lines = [line for line in history_path.read_text().strip().split("\n") if line]
         assert len(lines) == 2
         assert json.loads(lines[0])["pre_existing"] is True
         assert json.loads(lines[1])["cycle"] == 1

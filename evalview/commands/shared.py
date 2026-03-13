@@ -3,8 +3,6 @@ from __future__ import annotations
 
 import asyncio
 import os
-import re
-import sys
 import uuid
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple, TYPE_CHECKING
@@ -14,11 +12,7 @@ import yaml
 from dotenv import load_dotenv
 from rich.console import Console
 
-from evalview.adapters.http_adapter import HTTPAdapter
-from evalview.adapters.tapescope_adapter import TapeScopeAdapter
-from evalview.adapters.langgraph_adapter import LangGraphAdapter
-from evalview.adapters.crewai_adapter import CrewAIAdapter
-from evalview.adapters.openai_assistants_adapter import OpenAIAssistantsAdapter
+from evalview.core.adapter_factory import create_adapter
 from evalview.core.types import ExecutionTrace, ExecutionMetrics, TokenUsage
 
 if TYPE_CHECKING:
@@ -38,29 +32,12 @@ console = Console()
 
 def _create_adapter(adapter_type: str, endpoint: str, timeout: float = 30.0, allow_private_urls: bool = True) -> "AgentAdapter":
     """Factory function for creating adapters based on type."""
-    if adapter_type == "cohere":
-        from evalview.adapters.cohere_adapter import CohereAdapter
-        return CohereAdapter()
-
-    if adapter_type == "mistral":
-        from evalview.adapters.mistral_adapter import MistralAdapter
-        return MistralAdapter()
-
-    adapter_map = {
-        "http": HTTPAdapter,
-        "langgraph": LangGraphAdapter,
-        "tapescope": TapeScopeAdapter,
-        "crewai": CrewAIAdapter,
-        "openai": OpenAIAssistantsAdapter,
-    }
-
-    adapter_class = adapter_map.get(adapter_type)
-    if not adapter_class:
-        raise ValueError(f"Unknown adapter type: {adapter_type}")
-
-    if adapter_type == "http":
-        return adapter_class(endpoint=endpoint, timeout=timeout, allow_private_urls=allow_private_urls)
-    return adapter_class(endpoint=endpoint, timeout=timeout)
+    return create_adapter(
+        adapter_type=adapter_type,
+        endpoint=endpoint,
+        timeout=timeout,
+        allow_private_urls=allow_private_urls,
+    )
 
 
 async def _execute_multi_turn_trace(test_case: TestCase, adapter: AgentAdapter) -> ExecutionTrace:
@@ -256,7 +233,7 @@ def _execute_check_tests(
         diffs is [(test_name, TraceDiff)] and golden_traces maps test name
         to the primary GoldenTrace used for comparison.
     """
-    from evalview.core.golden import GoldenStore, GoldenTrace
+    from evalview.core.golden import GoldenStore
     from evalview.core.diff import DiffEngine
     from evalview.core.config import DiffConfig
     from evalview.core.drift_tracker import DriftTracker

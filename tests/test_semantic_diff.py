@@ -1,7 +1,6 @@
 """Tests for evalview/core/semantic_diff.py."""
 
 import pytest
-import json
 from unittest.mock import AsyncMock, MagicMock, patch
 
 

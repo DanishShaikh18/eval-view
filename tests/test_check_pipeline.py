@@ -10,8 +10,6 @@ detection feature work:
 - Semantic diff warning is shown when OPENAI_API_KEY is missing
 """
 
-import shutil
-import tempfile
 from datetime import datetime
 from pathlib import Path
 from unittest.mock import AsyncMock, MagicMock, patch
@@ -56,7 +54,6 @@ def _make_fake_result(test_name: str, score: float = 90.0):
 
 def _write_golden(base: Path, test_name: str, trace=None, score: float = 90.0) -> None:
     """Write a minimal golden JSON file directly to bypass save_golden() side effects."""
-    import json
     from evalview.core.golden import GoldenStore
 
     golden_dir = base / ".evalview" / "golden"

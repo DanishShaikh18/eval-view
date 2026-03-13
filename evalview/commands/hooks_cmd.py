@@ -226,7 +226,7 @@ def uninstall_hooks(hook_name: str, git_dir: Optional[str]) -> None:
     stripped = "".join(out).rstrip("\n")
 
     # If only the shebang (or nothing) remains, delete the file
-    meaningful = [l for l in stripped.splitlines() if l.strip() and not l.startswith("#!")]
+    meaningful = [line for line in stripped.splitlines() if line.strip() and not line.startswith("#!")]
     if not meaningful:
         hook_path.unlink()
         console.print(
@@ -234,7 +234,6 @@ def uninstall_hooks(hook_name: str, git_dir: Optional[str]) -> None:
             "(hook file was otherwise empty and has been deleted).[/green]"
         )
     else:
-        import stat as _stat
         mode = hook_path.stat().st_mode
         hook_path.write_text(stripped + "\n", encoding="utf-8")
         hook_path.chmod(mode)  # restore permissions (write() may reset via umask)

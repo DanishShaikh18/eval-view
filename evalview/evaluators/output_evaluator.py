@@ -119,7 +119,20 @@ class OutputEvaluator:
                     code_notes.append(f"schema: {schema_err[:60]}")
 
         # LLM-as-judge evaluation
-        llm_result = await self._llm_as_judge(test_case, trace)
+        try:
+            llm_result = await self._llm_as_judge(test_case, trace)
+        except Exception as exc:
+            fallback = self._fallback_judge_result(test_case, trace, exc)
+            final_score = max(0, fallback["score"] - code_penalty)
+            rationale = fallback["rationale"]
+            if code_notes:
+                rationale = f"{rationale} [code checks: {'; '.join(code_notes)}]"
+            return OutputEvaluation(
+                score=final_score,
+                rationale=rationale,
+                contains_checks=contains_checks,
+                not_contains_checks=not_contains_checks,
+            )
 
         final_score = max(0, llm_result["score"] - code_penalty)
         rationale = llm_result["rationale"]
@@ -132,6 +145,74 @@ class OutputEvaluator:
             contains_checks=contains_checks,
             not_contains_checks=not_contains_checks,
         )
+
+    def _fallback_judge_result(
+        self,
+        test_case: TestCase,
+        trace: ExecutionTrace,
+        error: Exception,
+    ) -> Dict[str, Any]:
+        """Deterministic fallback when the judge provider is unavailable."""
+        output = trace.final_output.strip()
+        output_lower = output.lower()
+        expected_output = test_case.expected.output
+
+        contains = expected_output.contains if expected_output else []
+        not_contains = expected_output.not_contains if expected_output else []
+
+        contains_checks = self._check_contains(output, contains)
+        not_contains_checks = self._check_not_contains(output, not_contains)
+
+        contains_ratio = (
+            len(contains_checks.passed) / len(contains)
+            if contains
+            else 1.0
+        )
+        not_contains_ratio = (
+            len(not_contains_checks.passed) / len(not_contains)
+            if not_contains
+            else 1.0
+        )
+
+        score = 0.0
+        score += contains_ratio * 45.0
+        score += not_contains_ratio * 15.0
+
+        if output_lower in {"i don't know.", "i don't know", "unknown", "not sure"}:
+            score += 5.0
+        elif len(output) >= 20:
+            score += 15.0
+        elif output:
+            score += 8.0
+
+        query_lower = test_case.input.query.lower()
+        query_terms = [
+            token
+            for token in "".join(ch if ch.isalnum() else " " for ch in query_lower).split()
+            if len(token) >= 4 and token not in {"what", "when", "where", "which", "there", "about"}
+        ]
+        if query_terms:
+            matched_terms = sum(1 for token in query_terms if token in output_lower)
+            score += min(matched_terms / len(query_terms), 1.0) * 25.0
+        else:
+            score += 10.0
+
+        needs_explanation = any(word in query_lower for word in ("explain", "why", "how"))
+        explanation_markers = ("because", "since", "reason", "means", "therefore", "which is why")
+        if needs_explanation and not any(marker in output_lower for marker in explanation_markers):
+            score -= 30.0
+
+        if contains and contains_ratio == 0.0:
+            score = min(score, 25.0)
+
+        rationale = (
+            f"LLM judge unavailable ({type(error).__name__}: {error}). "
+            "Used deterministic fallback scoring."
+        )
+        return {
+            "score": round(max(0.0, min(score, 100.0)), 2),
+            "rationale": rationale,
+        }
 
     def _check_contains(self, output: str, must_contain: Optional[List[str]]) -> ContainsChecks:
         """Check if output contains required strings."""

@@ -107,6 +107,7 @@ class HallucinationEvaluator:
 
         # Strategy 2: LLM-based fact checking
         fact_check_result = await self._llm_fact_check(test_case, trace)
+        fact_check_unavailable = bool(fact_check_result.get("unavailable"))
 
         # Strategy 3: Uncertainty detection
         uncertainty_issues = self._check_uncertainty_handling(test_case, trace)
@@ -141,6 +142,8 @@ class HallucinationEvaluator:
                 details += "The agent may have used real data, but EvalView couldn't verify it because the tool results weren't captured in the trace."
         else:
             details = "No hallucinations detected. Output appears factually consistent."
+            if fact_check_unavailable:
+                details += f" LLM fact check unavailable: {fact_check_result.get('reason', 'unknown error')}."
 
         return has_hallucination, confidence, details
 
@@ -259,11 +262,12 @@ Only flag actual false information. Helpful advice is NOT hallucination."""
             return result
 
         except Exception as e:
-            # Fallback if LLM check fails
             return {
                 "has_hallucination": False,
                 "confidence": 0.0,
-                "issues": [f"Fact check failed: {str(e)}"],
+                "issues": [],
+                "unavailable": True,
+                "reason": str(e),
             }
 
     def _format_tool_results(self, tool_results: list) -> str:
@@ -304,10 +308,13 @@ Only flag actual false information. Helpful advice is NOT hallucination."""
 
         # Check if output config requires uncertainty acknowledgment
         output_config = test_case.expected.output
-        if not output_config or not isinstance(output_config, dict):
+        if not output_config:
             return issues
 
-        must_acknowledge = output_config.get("must_acknowledge_uncertainty", False)
+        if isinstance(output_config, dict):
+            must_acknowledge = output_config.get("must_acknowledge_uncertainty", False)
+        else:
+            must_acknowledge = output_config.must_acknowledge_uncertainty or False
 
         if must_acknowledge:
             # Check if any tools failed or returned no data

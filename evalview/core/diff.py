@@ -271,7 +271,6 @@ class DiffEngine:
 
         has_tool_changes = bool(tool_diffs)
         has_output_change = output_diff.similarity < 0.95
-        has_significant_output_change = output_diff.similarity < 0.80
         score_dropped = score_diff < -self.score_regression_threshold
 
         has_differences = has_tool_changes or has_output_change
@@ -533,7 +532,7 @@ class DiffEngine:
                 actual_val = actual_params[key]
 
                 # Type mismatch
-                if type(golden_val) != type(actual_val):
+                if not isinstance(actual_val, type(golden_val)):
                     diffs.append(ParameterDiff(
                         param_name=key,
                         golden_value=golden_val,

@@ -1,7 +1,5 @@
 """Tests for evalview/core/runner.py."""
 
-import shutil
-import tempfile
 from pathlib import Path
 from unittest.mock import AsyncMock, MagicMock, patch
 

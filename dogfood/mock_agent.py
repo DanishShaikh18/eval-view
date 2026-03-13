@@ -19,6 +19,7 @@ Additional test scenarios:
 """
 
 import re
+import os
 import time
 from typing import Any, Dict, List, Optional, Tuple
 
@@ -410,6 +411,8 @@ async def health():
 if __name__ == "__main__":
     import uvicorn
 
-    print("Mock Agent running on http://localhost:8002")
+    port = int(os.environ.get("EVALVIEW_DOGFOOD_PORT", "8002"))
+    host = os.environ.get("EVALVIEW_DOGFOOD_HOST", "127.0.0.1")
+    print(f"Mock Agent running on http://{host}:{port}")
     print("This agent returns deterministic responses for dogfood testing")
-    uvicorn.run(app, host="0.0.0.0", port=8002, log_level="info")
+    uvicorn.run(app, host=host, port=port, log_level="info")

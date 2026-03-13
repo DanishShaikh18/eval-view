@@ -1,7 +1,6 @@
 """Cloud auth management — stores session in ~/.evalview/auth.json."""
 
 import json
-import os
 import stat
 from pathlib import Path
 from typing import Optional, Dict, Any

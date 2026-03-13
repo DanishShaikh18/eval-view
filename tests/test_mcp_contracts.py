@@ -12,7 +12,6 @@ from evalview.core.mcp_contract import (
 )
 from evalview.core.contract_diff import (
     diff_contract,
-    ContractDiff,
     ContractDriftStatus,
     ChangeKind,
     ToolChange,

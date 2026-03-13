@@ -11,7 +11,6 @@ Handles:
 """
 from __future__ import annotations
 
-import sys
 from datetime import datetime
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Set, Tuple
@@ -24,7 +23,6 @@ def display_diff_results(
 ) -> None:
     """Print the golden diff report and any CI urgency messages."""
     from evalview.core.diff import DiffStatus
-    from evalview.core.golden import GoldenStore
 
     if not diffs_found:
         _print_no_diffs(results, console)

@@ -20,7 +20,7 @@ from typing import Any, Dict, List, Optional
 import click
 import yaml
 
-from evalview.commands.shared import console, _execute_multi_turn_trace
+from evalview.commands.shared import console
 from evalview.core.llm_provider import get_or_select_provider, save_provider_preference, PROVIDER_CONFIGS
 from evalview.core.loader import TestCaseLoader
 from evalview.evaluators.evaluator import Evaluator
