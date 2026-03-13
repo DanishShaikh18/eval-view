@@ -16,6 +16,7 @@ If you're new:
 |------------|-----------------|------|
 | Get EvalView running quickly | [Getting Started](GETTING_STARTED.md) | [CLI Reference](CLI_REFERENCE.md) |
 | Go from zero tests to a draft suite | [Test Generation](TEST_GENERATION.md) | [CI/CD Integration](CI_CD.md) |
+| Compare EvalView to other tools | [Comparisons](COMPARISONS.md) | [AI Agent Testing in CI/CD](AI_AGENT_TESTING_CI.md) |
 | Understand regression detection | [Golden Traces](GOLDEN_TRACES.md) | [Evaluation Metrics](EVALUATION_METRICS.md) |
 | Test a specific framework | [Framework Support](FRAMEWORK_SUPPORT.md) | the matching quick start below |
 | Set up CI/CD | [CI/CD Integration](CI_CD.md) | [Golden Traces](GOLDEN_TRACES.md) |
@@ -30,6 +31,7 @@ If you're new:
 | [CLI Reference](CLI_REFERENCE.md) | Full command reference for `evalview` |
 | [FAQ](FAQ.md) | Positioning, pricing, framework support, common questions |
 | [YAML Test Case Schema](YAML_SCHEMA.md) | Complete schema for authoring test cases |
+| [Comparisons](COMPARISONS.md) | EvalView vs LangSmith, Langfuse, Braintrust, and DeepEval |
 
 ## Core Concepts
 
@@ -63,9 +65,26 @@ If you're new:
 | Document | Description |
 |----------|-------------|
 | [CI/CD Integration](CI_CD.md) | GitHub Actions, GitLab CI, CircleCI |
+| [AI Agent Testing in CI/CD](AI_AGENT_TESTING_CI.md) | Search-intent guide for regression testing agents in CI |
 | [MCP Contract Testing](MCP_CONTRACTS.md) | Detect external MCP server interface drift |
 | [Skills Testing](SKILLS_TESTING.md) | Test `SKILL.md` behavior with real agents |
 | [Chat Mode](CHAT_MODE.md) | Interactive CLI guidance and exploration |
+
+## Website Guides
+
+Use the website when you want the cleaner comparison and search-intent pages. Use the repo docs when you want command details and implementation guidance.
+
+| Page | Best for |
+|------|----------|
+| [AI agent testing in CI/CD](https://www.evalview.com/ai-agent-testing-ci-cd) | high-level workflow and positioning |
+| [AI agent regression testing](https://www.evalview.com/ai-agent-regression-testing) | explaining the core problem to a team |
+| [MCP server testing](https://www.evalview.com/mcp-server-testing) | testing MCP servers and tool contracts |
+| [LangGraph testing](https://www.evalview.com/langgraph-testing) | LangGraph-specific adoption |
+| [Tool-calling agent testing](https://www.evalview.com/tool-calling-agent-testing) | tool-path and safety-focused testing |
+| [EvalView vs LangSmith](https://www.evalview.com/vs/langsmith) | observability vs regression testing |
+| [EvalView vs Langfuse](https://www.evalview.com/vs/langfuse) | tracing vs regression gating |
+| [EvalView vs Braintrust](https://www.evalview.com/vs/braintrust) | broader evals vs baseline regression testing |
+| [EvalView vs DeepEval](https://www.evalview.com/vs/deepeval) | metric-first evals vs trajectory diffs |
 
 ## Debugging and Learning
 

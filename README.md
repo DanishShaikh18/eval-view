@@ -5,7 +5,7 @@
   <img src="assets/logo.png" alt="EvalView" width="350">
   <br>
   <strong>Regression testing for AI agents.</strong><br>
-  Snapshot your agent's behavior. Detect when it breaks. Block regressions in CI.
+  AI agent testing for CI/CD: generate tests, snapshot behavior, detect regressions, and block broken tool-calling agents before production.
 </p>
 
 <p align="center">
@@ -22,6 +22,19 @@
 <p align="center">If this catches a regression for you, please ⭐ <a href="https://github.com/hidai25/eval-view/stargazers">star the repo</a> — it helps others find it.</p>
 
 ---
+
+EvalView is an **AI agent testing** and **LLM agent regression testing** tool for teams shipping tool-calling agents. It helps you:
+- generate your first agent test suite from a URL or traffic logs
+- snapshot a golden baseline for agent behavior
+- detect tool-call, sequence, output, cost, and latency regressions
+- run AI agent tests in CI/CD before shipping changes
+
+Use EvalView when you need:
+- **AI agent regression testing**
+- **LLM agent testing in CI/CD**
+- **tool-calling agent evaluation**
+- **golden baseline testing for agents**
+- **MCP server regression testing**
 
 <p align="center">
   <img src="assets/hero.jpg" alt="EvalView — multi-turn execution trace with sequence diagram" width="860">
@@ -92,6 +105,8 @@ pip install evalview && evalview demo   # ~30 seconds, no API key needed
 
 [Full Quick Start guide →](#quick-start)
 [Documentation index →](docs/README.md)
+[Test Generation guide →](docs/TEST_GENERATION.md)
+[Website guides →](https://www.evalview.com/ai-agent-testing-ci-cd)
 
 <details>
 <summary><strong>See it in action</strong> (CLI demo)</summary>
@@ -119,6 +134,35 @@ Specifically, EvalView diffs the full agent trajectory — tool calls, parameter
 | Production monitoring | Tracing | — | — | **Check loop + Slack** |
 | Prompt/output experimentation | — | **Yes** | **Yes** | Basic |
 | Production tracing & dashboards | **Yes** | **Yes** | — | — |
+
+### What People Search For
+
+If you searched for any of these, you're in the right place:
+- AI agent testing
+- LLM agent testing
+- regression testing for AI agents
+- agent evals in CI/CD
+- tool-calling agent testing
+- LangGraph testing
+- MCP server testing
+- golden baseline testing for agents
+
+### Compare
+
+- [Comparison guides](docs/COMPARISONS.md)
+- [EvalView vs LangSmith](docs/VS_LANGSMITH.md)
+- [EvalView vs Langfuse](docs/VS_LANGFUSE.md)
+- [EvalView vs Braintrust](docs/VS_BRAINTRUST.md)
+- [EvalView vs DeepEval](docs/VS_DEEPEVAL.md)
+- [AI agent testing in CI/CD](docs/AI_AGENT_TESTING_CI.md)
+- [EvalView vs LangSmith on evalview.com](https://www.evalview.com/vs/langsmith)
+- [EvalView vs Langfuse on evalview.com](https://www.evalview.com/vs/langfuse)
+- [EvalView vs Braintrust on evalview.com](https://www.evalview.com/vs/braintrust)
+- [EvalView vs DeepEval on evalview.com](https://www.evalview.com/vs/deepeval)
+- [AI agent regression testing guide on evalview.com](https://www.evalview.com/ai-agent-regression-testing)
+- [MCP server testing guide on evalview.com](https://www.evalview.com/mcp-server-testing)
+- [LangGraph testing guide on evalview.com](https://www.evalview.com/langgraph-testing)
+- [Tool-calling agent testing guide on evalview.com](https://www.evalview.com/tool-calling-agent-testing)
 
 ---
 
