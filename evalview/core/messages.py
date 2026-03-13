@@ -18,12 +18,10 @@ CHECKING_MESSAGES: List[str] = [
 # Phase 1 (snapshot): clean and purposeful, no randomness
 DEMO_SNAPSHOT_MESSAGE = "🔍 Locking in baseline behavior..."
 
-# Phase 2 (check): the "moment of truth" — relatable for any dev who's
-# ever held their breath after a model swap
 DEMO_CHECK_MESSAGES: List[str] = [
-    "🔍 Moment of truth — what did the new model change?",
-    "🔍 Let's see what slipped through...",
-    "🔍 Running the new model through its paces...",
+    "🔍 Comparing staging against the baseline...",
+    "🔍 Checking what changed after the model update...",
+    "🔍 Running the regression check on the new model...",
 ]
 
 # Clean check messages (rotate randomly when no regressions found)

@@ -31,8 +31,8 @@ def demo():
     # ── Intro ─────────────────────────────────────────────────────────────────
     console.print(Rule(" EvalView — Live Regression Demo ", style="bold cyan"))
     console.print()
-    console.print("  [bold]Scenario:[/bold] Your customer support AI handles 50,000 tickets a day.")
-    console.print("  Engineering just shipped a model update. Let's check it before customers do.")
+    console.print("  [bold]Scenario:[/bold] Customer support agent after a model update.")
+    console.print("  Baseline first. Then a regression check on staging.")
     console.print()
     console.print("  [dim]Everything below is live — a real HTTP server, real evaluation.[/dim]")
     console.print()
@@ -180,7 +180,7 @@ def demo():
         # ── Phase 1: Snapshot good behavior ──────────────────────────────────
         console.print(Rule(" Phase 1 — Baseline: the agent before the update ", style="cyan"))
         console.print()
-        console.print("  [dim]Running the test suite against today's production agent...[/dim]")
+        console.print("  [dim]Running the suite against the current baseline candidate...[/dim]")
         console.print()
 
         _demo_env_base = {
@@ -201,7 +201,7 @@ def demo():
         # ── Phase 2: Break the agent, run check ──────────────────────────────
         console.print(Rule(" Phase 2 — Model update deployed to staging ", style="yellow"))
         console.print()
-        console.print("  [bold]The new model is live. Running regression check before it hits production...[/bold]")
+        console.print("  [bold]The new model is live in staging. Run the regression check before deploy.[/bold]")
         console.print()
 
         _state["broken"] = True  # switch agent to broken mode
@@ -214,16 +214,18 @@ def demo():
         )
 
         console.print()
-        console.print("  [bold red]At 50K tickets/day, this update would have cost:[/bold red]")
-        console.print("  [red]  • escalate_to_human on every refund  →  $125K/day in unnecessary ops[/red]")
-        console.print("  [red]  • billing-dispute non-answer  →  chargebacks, churn, manual escalations[/red]")
+        console.print("  [bold red]Result:[/bold red] [red]do not ship this update[/red]")
         console.print()
-        console.print("  [green]EvalView caught both before a single customer was affected.[/green]")
+        console.print("  [bold]Illustrative impact at production scale:[/bold]")
+        console.print("  [red]  • Extra escalation on every refund  →  unnecessary support load[/red]")
+        console.print("  [red]  • Billing dispute loses account history lookup  →  weak answer quality[/red]")
+        console.print()
+        console.print("  [green]EvalView caught both before rollout.[/green]")
         console.print()
 
         # ── CTA ──────────────────────────────────────────────────────────────
         console.print(Panel(
-            "[bold green]Now run this on your own agent:[/bold green]\n"
+            "[bold green]Run the same workflow on your own agent:[/bold green]\n"
             "\n"
             "  [cyan]$ evalview snapshot[/cyan]   [dim]# save today's behavior as baseline[/dim]\n"
             "  [cyan]$ evalview check[/cyan]      [dim]# run before every deploy[/dim]",
