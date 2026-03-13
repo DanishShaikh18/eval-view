@@ -1230,8 +1230,8 @@ Yes. EvalView is Apache 2.0 open source. Cloud baseline sync (`evalview login`) 
 
 ## Get Help & Contributing
 
+- **Bug, feature request, or question?** Run `evalview feedback` — it opens a pre-filled issue in your browser
 - **Questions?** [GitHub Discussions](https://github.com/hidai25/eval-view/discussions)
-- **Bugs?** [GitHub Issues](https://github.com/hidai25/eval-view/issues)
 - **Want setup help?** Email hidai@evalview.com — happy to help configure your first tests
 - **Contributing?** See [CONTRIBUTING.md](CONTRIBUTING.md)
 
