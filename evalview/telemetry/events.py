@@ -7,13 +7,13 @@ import os
 import platform
 import sys
 from dataclasses import dataclass, field, asdict
-from datetime import UTC, datetime
+from datetime import datetime, timezone
 from typing import Optional, Dict, Any
 
 
 def _utc_now_iso() -> str:
     """Return an ISO8601 UTC timestamp."""
-    return datetime.now(UTC).isoformat().replace("+00:00", "Z")
+    return datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
 
 
 def _detect_github_repo() -> Optional[str]:

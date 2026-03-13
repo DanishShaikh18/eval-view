@@ -10,7 +10,7 @@ import json
 import os
 import uuid
 from dataclasses import dataclass, field, asdict
-from datetime import UTC, datetime
+from datetime import datetime, timezone
 from pathlib import Path
 
 # Environment variable to disable telemetry (always wins)
@@ -26,7 +26,7 @@ SCHEMA_VERSION = 1
 
 def _utc_now_iso() -> str:
     """Return an ISO8601 UTC timestamp."""
-    return datetime.now(UTC).isoformat().replace("+00:00", "Z")
+    return datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
 
 
 @dataclass

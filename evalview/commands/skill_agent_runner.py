@@ -42,7 +42,7 @@ def run_agent_skill_test(
         cwd,
         max_turns,
         verbose,
-        model,
+        model or "",
         console,
     )
 
