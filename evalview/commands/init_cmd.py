@@ -5,6 +5,7 @@ import asyncio
 import os
 import re
 import sys
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
@@ -208,6 +209,17 @@ def _generate_init_draft_suite(endpoint: str, out_dir: Path) -> tuple[int, dict[
     )
     if not result.tests:
         return 0, result.report
+
+    approved_at = datetime.now(timezone.utc).isoformat()
+    for test_case in result.tests:
+        meta = dict(test_case.meta or {})
+        meta["generated_by"] = "evalview init"
+        meta["review_status"] = "approved"
+        meta["approved_at"] = approved_at
+        test_case.meta = meta
+        test_case.thresholds.min_score = min(test_case.thresholds.min_score, 50.0)
+        if test_case.thresholds.max_latency is None or test_case.thresholds.max_latency < 1000:
+            test_case.thresholds.max_latency = 1000.0
 
     generator = AgentTestGenerator(
         adapter=adapter,
@@ -845,7 +857,7 @@ model:
         )
         step4 = (
             f"[bold]→[/bold] Capture a baseline for just these drafts\n"
-            f"   [cyan]evalview snapshot tests/generated-from-init --approve-generated[/cyan]{snapshot_suffix}"
+            f"   [cyan]evalview snapshot tests/generated-from-init[/cyan]{snapshot_suffix}"
         )
         step5 = (
             "[bold]→[/bold] Check these drafts for regressions anytime\n"

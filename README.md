@@ -96,17 +96,35 @@ That matters because many real agent failures happen after the first turn, when 
 ### The workflow
 
 ```bash
-evalview generate --agent http://localhost:8000         # 1. Draft a regression suite
-evalview snapshot tests/generated --approve-generated   # 2. Approve + baseline
-evalview check tests/generated                          # 3. Catch regressions
-evalview monitor                                         # 4. Watch continuously (+ Slack alerts)
+evalview init        # 1. Connect your agent and create an active starter suite
+evalview snapshot    # 2. Save today's behavior as baseline
+evalview check       # 3. Catch regressions after every change
+evalview monitor     # 4. Watch continuously (+ Slack alerts)
 # ✅ All clean — or ❌ REGRESSION: score 85 → 71
+```
+
+### 60-second start
+
+If you only want to understand the product first:
+
+```bash
+pip install evalview
+evalview demo
+```
+
+If you already have a local agent running:
+
+```bash
+evalview init
+evalview snapshot
+evalview check
 ```
 
 ### Start Here
 
 Choose the shortest path for your use case:
 
+- First time, local agent already running: `evalview init` → `evalview snapshot` → `evalview check`
 - New project, no traffic yet: `evalview generate --agent ...` → `evalview snapshot --approve-generated` → `evalview check`
 - Existing traffic or staging logs: `evalview generate --from-log traffic.jsonl`
 - Production-shaped tests from real usage: `evalview capture --agent ...` → `evalview snapshot` → `evalview check`
@@ -115,7 +133,7 @@ Choose the shortest path for your use case:
 - Framework-specific setup: [Framework Support](docs/FRAMEWORK_SUPPORT.md)
 - Skill testing for Claude Code / Codex / OpenClaw: [Skills Testing](docs/SKILLS_TESTING.md)
 
-Works with **LangGraph, CrewAI, OpenAI, Claude, Mistral, HuggingFace, Ollama, and any HTTP API**.
+Works with **LangGraph, CrewAI, OpenAI, Claude, Mistral, HuggingFace, Ollama, MCP, and any HTTP API**.
 
 ```bash
 pip install evalview && evalview demo   # ~30 seconds, no API key needed
@@ -332,9 +350,21 @@ evalview check --semantic-diff
 pip install evalview
 ```
 
-### Step 1 — Generate or capture tests
+### Default path: local agent already running
 
-If you have no test suite yet, start with generation:
+This is the path most users should start with:
+
+```bash
+evalview init
+evalview snapshot
+evalview check
+```
+
+`init` detects the running agent, creates an active starter suite, and makes plain `snapshot` / `check` follow that suite automatically.
+
+### Other entry paths
+
+If you want a broader generated draft suite:
 
 ```bash
 evalview generate --agent http://localhost:8000
@@ -342,7 +372,13 @@ evalview generate --agent http://localhost:8000
 # Also writes tests/generated/generated.report.json for CI review
 ```
 
-If you already have logs from staging or production:
+Then baseline it:
+
+```bash
+evalview snapshot tests/generated --approve-generated
+```
+
+If you already have staging or production logs:
 
 ```bash
 evalview generate --from-log traffic.jsonl
@@ -357,30 +393,25 @@ evalview capture --agent http://localhost:8000/invoke
 # Tests are saved to tests/test-cases/ automatically
 ```
 
-> **When to use which?**
-> `generate` is the fastest path from zero to a draft suite.
-> `capture` is the highest-signal path when you already have real usage to replay.
-
-### Step 2 — Review and save as your baseline
-
-Generated tests are draft-only until you approve them:
-
-```bash
-evalview snapshot tests/generated --approve-generated
-```
-
-Captured or hand-written tests snapshot normally:
+Captured or hand-written tests baseline normally:
 
 ```bash
 export OPENAI_API_KEY='your-key'   # for LLM-as-judge scoring
 evalview snapshot
 ```
 
-### Step 3 — Catch regressions forever
+> **When to use which?**
+> `init` is the fastest path from zero to a working local regression loop.
+> `generate` is the fastest path from zero to a broader draft suite.
+> `capture` is the highest-signal path when you already have real usage to replay.
+
+### Run regression checks forever
 
 ```bash
 evalview check   # run this after every change
 ```
+
+`evalview run` is different: it evaluates the current agent directly. Use it when you want raw evaluation or HTML reports, not as the primary onboarding/regression command.
 
 ### Review generated suites in CI
 
@@ -524,7 +555,7 @@ export SKILL_TEST_BASE_URL=https://api.deepseek.com/v1
 evalview skill test tests/my-skill.yaml
 ```
 
-**Personalized first test in under 2 minutes** — the wizard asks a few questions and generates a config + test case tuned to your actual agent:
+**Personalized setup wizard** — use this when you want a hand-held setup flow instead of the default `evalview init` path:
 
 ```bash
 evalview init --wizard
@@ -565,7 +596,7 @@ evalview add rag-citation --tool my_retriever --query "What is the refund policy
 Available patterns: `tool-not-called` · `wrong-tool-chosen` · `tool-error-handling` · `tool-sequence` · `cost-budget` · `latency-budget` · `output-format` · `multi-turn-memory` · `rag-grounding` · `rag-citation` · `customer-support` · `code-generation` · `data-analysis` · `research-synthesis` · `safety-refusal`
 
 > **When to use which:**
-> - `evalview init --wizard` → Day 0, blank slate, writes the first test for you
+> - `evalview init --wizard` → Use when you want a guided setup flow instead of the default `evalview init`
 > - `evalview add <pattern>` → Day 3+, you know your agent's domain and want a head start
 
 ---
@@ -573,6 +604,9 @@ Available patterns: `tool-not-called` · `wrong-tool-chosen` · `tool-error-hand
 ## Visual Reports
 
 **Every `evalview run` automatically opens an interactive HTML report in your browser.** No flag needed.
+
+Use `evalview run` for direct evaluation and rich HTML inspection.
+Use `evalview snapshot` / `evalview check` for the main regression workflow.
 
 <p align="center">
   <img src="docs/report-screenshot.png" alt="EvalView HTML Report — pass rate, scores, cost, latency" width="860">

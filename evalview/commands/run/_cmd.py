@@ -563,6 +563,7 @@ async def _run_async(
     if not test_cases:
         console.print("[yellow]⚠️  No runnable tests. Fix test quality issues above and re-run.[/yellow]")
         return
+    _print_run_mode_guidance(test_cases, console)
 
     # ── Variance / statistical mode ───────────────────────────────────────────
     if runs is not None:
@@ -843,6 +844,10 @@ def _load_test_cases(
 
     Returns the list of test cases, or None if a fatal error occurred.
     """
+    from evalview.core.project_state import ProjectStateStore
+
+    state_store = ProjectStateStore()
+
     if path:
         target = Path(path)
         if target.is_file():
@@ -850,6 +855,7 @@ def _load_test_cases(
                 cases = [TestCaseLoader.load_from_file(target)]
                 if verbose:
                     console.print(f"[dim]📄 Loading test case from: {path}[/dim]\n")
+                state_store.set_active_test_path(str(target.parent))
                 return cases
             except Exception as exc:
                 console.print(f"[red]❌ Failed to load test case: {exc}[/red]")
@@ -858,6 +864,7 @@ def _load_test_cases(
             cases = TestCaseLoader.load_from_directory(target, "*.yaml")
             if verbose:
                 console.print(f"[dim]📁 Loading test cases from: {path}[/dim]\n")
+            state_store.set_active_test_path(str(target))
             return cases
         else:
             console.print(f"[red]❌ Path not found: {path}[/red]")
@@ -879,21 +886,23 @@ def _load_test_cases(
             console.print(f"[dim]📁 Loading test cases from: {pattern}[/dim]\n")
         return cases
 
-    default_dir = Path("tests/test-cases")
+    active_test_path = state_store.get_active_test_path()
+    default_dir = Path(active_test_path) if active_test_path and Path(active_test_path).exists() else Path("tests/test-cases")
     if not default_dir.exists():
-        console.print("[red]❌ Test cases directory not found: tests/test-cases[/red]")
+        console.print(f"[red]❌ Test cases directory not found: {default_dir}[/red]")
         console.print("[dim]Tip: You can specify a path or file directly:[/dim]")
         console.print("[dim]  evalview run examples/anthropic[/dim]")
         console.print("[dim]  evalview run path/to/test-case.yaml[/dim]")
         return None
 
     cases = TestCaseLoader.load_from_directory(default_dir, pattern)
+    state_store.set_active_test_path(str(default_dir))
     if not cases:
         console.print(f"[yellow]⚠️  No test cases found matching pattern: {pattern}[/yellow]\n")
         console.print("[bold]💡 Create tests by:[/bold]")
         console.print("   • [cyan]evalview record --interactive[/cyan]   (record agent interactions)")
         console.print("   • [cyan]evalview expand <test.yaml>[/cyan]     (generate variations from seed)")
-        console.print("   • Or create YAML files manually in tests/test-cases/")
+        console.print(f"   • Or create YAML files manually in {default_dir}/")
         console.print()
         return None
     return cases
@@ -929,6 +938,17 @@ def _apply_quality_filter(test_cases: List[Any], console: Any) -> List[Any]:
         console.print(f"[dim]   {len(skipped)} auto-generated test(s) skipped. Fix and re-run, or rewrite manually.[/dim]\n")
 
     return qualified
+
+
+def _print_run_mode_guidance(test_cases: List[Any], console: Any) -> None:
+    """Clarify that `run` is direct evaluation, not the main regression flow."""
+    generated_count = sum(1 for tc in test_cases if getattr(tc, "generated", False))
+    if generated_count == 0:
+        return
+    console.print(
+        "[dim]`evalview run` evaluates the current agent directly. "
+        "For the main regression flow, save a baseline with `evalview snapshot` and compare with `evalview check`.[/dim]\n"
+    )
 
 
 def _maybe_show_adapter_menu(
