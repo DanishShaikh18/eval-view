@@ -13,6 +13,7 @@ from evalview.telemetry.config import (
     should_show_first_run_notice,
     mark_first_run_notice_shown,
 )
+from evalview.version_check import get_update_notice
 
 # ── Command modules ──────────────────────────────────────────────────────────
 from evalview.commands.run import run
@@ -110,6 +111,11 @@ def main(ctx: click.Context) -> None:
             console.print("[dim]╰──────────────────────────────────────────────────────────────╯[/dim]")
             console.print()
             mark_first_run_notice_shown()
+
+    if ctx.invoked_subcommand not in (None, "telemetry"):
+        notice = get_update_notice(_EVALVIEW_VERSION)
+        if notice:
+            console.print(f"[dim]{notice}[/dim]\n")
 
 
 # ── Register commands ────────────────────────────────────────────────────────
