@@ -242,7 +242,16 @@ def _print_generated_test_preview(tests_dir: Path, max_files: int = 1) -> None:
     console.print()
     console.print("[bold]Generated Test Preview[/bold]")
     for path in yaml_files[:max_files]:
+        try:
+            data = yaml.safe_load(path.read_text(encoding="utf-8")) or {}
+        except Exception:
+            data = {}
+        meta = data.get("meta") or {}
+        behavior = str(meta.get("behavior_class") or "unknown").replace("_", " ")
+        turns = data.get("turns") or []
+        turn_label = f"{len(turns)} turns" if turns else "single turn"
         console.print(f"[dim]{path}[/dim]")
+        console.print(f"[dim]Behavior: {behavior} | {turn_label}[/dim]")
         console.print(path.read_text(encoding="utf-8").rstrip())
         console.print()
     if len(yaml_files) > max_files:
@@ -792,6 +801,7 @@ model:
             console.print(
                 f"[dim]   Coverage: tool paths={covered.get('tool_paths', 0)}, "
                 f"direct answers={covered.get('direct_answers', 0)}, "
+                f"clarifications={covered.get('clarifications', 0)}, "
                 f"multi-turn={covered.get('multi_turn', 0)}[/dim]"
             )
             if n == 1:

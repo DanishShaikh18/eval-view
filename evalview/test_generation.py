@@ -772,7 +772,7 @@ class AgentTestGenerator:
         if normalized_query == _CAPABILITY_PROMPT.lower():
             base = "Capability Overview"
         elif normalized_query == _SAFE_FOLLOW_UP.lower():
-            base = "Clarification Follow Up"
+            base = "Clarification Completion" if behavior_class == "multi_turn" else "Clarification Follow Up"
         else:
             words = re.findall(r"\b\w+\b", query)
             key_words = [

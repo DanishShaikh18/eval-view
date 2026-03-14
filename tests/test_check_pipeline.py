@@ -332,3 +332,44 @@ class TestSemanticDiffNotice:
         monkeypatch.delenv("OPENAI_API_KEY", raising=False)
         from evalview.core.semantic_diff import SemanticDiff
         assert SemanticDiff.is_available() is False
+
+
+def test_display_check_results_labels_multi_turn_regressions(capsys):
+    """Console check output should explicitly label failed multi-turn paths."""
+    from evalview.commands.check_display import _display_check_results
+    from evalview.core.diff import DiffStatus
+
+    diff = MagicMock()
+    diff.overall_severity = DiffStatus.REGRESSION
+    diff.score_diff = -20.0
+    diff.tool_diffs = []
+    diff.output_diff = None
+
+    analysis = {
+        "all_passed": False,
+        "has_regressions": True,
+        "has_tools_changed": False,
+        "has_output_changed": False,
+        "execution_failures": 0,
+    }
+    state = MagicMock()
+    state.current_streak = 0
+    state.total_checks = 1
+
+    _display_check_results(
+        [("refund-needs-order-number", diff)],
+        analysis,
+        state,
+        False,
+        False,
+        test_metadata={
+            "refund-needs-order-number": {
+                "is_multi_turn": True,
+                "behavior_class": "multi_turn",
+            }
+        },
+    )
+
+    output = capsys.readouterr().out
+    assert "Multi-turn path:" in output
+    assert "multi turn" in output

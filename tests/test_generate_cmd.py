@@ -143,6 +143,7 @@ def test_generate_writes_clustered_draft_suite(monkeypatch, tmp_path):
     assert "generated.report.json" in result.output
     assert "HTML report" in result.output
     assert "Generated Test Preview" in result.output
+    assert "Behavior:" in result.output
     assert "name:" in result.output
 
     yaml_files = sorted(out_dir.glob("*.yaml"))

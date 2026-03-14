@@ -5,7 +5,7 @@
   <img src="assets/logo.png" alt="EvalView" width="350">
   <br>
   <strong>Regression guardrails for agents.</strong><br>
-  Generate tests, snapshot behavior, and catch silent regressions in CI before they hit production.
+  Generate tests, snapshot tool use and multi-turn behavior, and catch silent regressions in CI before they hit production.
 </p>
 
 <p align="center">
@@ -36,6 +36,8 @@ Use EvalView when you need:
 - **golden baseline testing for agents**
 - **MCP server regression testing**
 
+Normal tests catch crashes. Tracing shows what happened after the fact. EvalView catches the harder class of failures: the agent still returns `200`, but it stops asking the clarification question, takes the wrong tool path on turn two, or silently changes output quality after a model or prompt update.
+
 <p align="center">
   <img src="assets/hero.jpg" alt="EvalView — multi-turn execution trace with sequence diagram" width="860">
   <br>
@@ -54,6 +56,26 @@ EvalView sends test queries to your agent's API and records everything: which to
   ✗ billing-dispute      REGRESSION  -30 pts
       Score: 85 → 55  Output similarity: 35%
 ```
+
+### Multi-turn regressions are first-class
+
+Many real failures are not single-turn failures. They happen when an agent should clarify, remember context, or act on a follow-up.
+
+```yaml
+name: refund-needs-order-number
+turns:
+  - query: "I want a refund"
+    expected:
+      output:
+        contains: ["order number"]
+  - query: "Order 4812"
+    expected:
+      tools: ["lookup_order", "check_policy"]
+thresholds:
+  min_score: 70
+```
+
+If the agent stops asking for the order number, skips straight to the wrong action, or takes a different tool path on the follow-up turn, EvalView flags it.
 
 **Four scoring layers, each one optional:**
 
@@ -74,24 +96,6 @@ The first two layers alone catch most regressions — fully offline, zero cost. 
 ```
 
 **Your data stays local.** Nothing is sent to EvalView servers — all processing happens on your machine.
-
-### Multi-turn regressions are first-class
-
-EvalView does not stop at single prompt/output checks. It can catch regressions where an agent skips a clarification question, asks the wrong follow-up, or takes the wrong tool path on turn two.
-
-```yaml
-tests:
-  - name: refund_flow_requires_clarification
-    conversation:
-      - user: "I want a refund"
-        expected:
-          assistant_contains: ["order number"]
-      - user: "Order 4812"
-        expected:
-          tools_called: ["lookup_order", "check_policy"]
-```
-
-That matters because many real agent failures happen after the first turn, when the agent has to remember context, ask a clarifying question, or decide whether to act.
 
 ### The workflow
 
@@ -119,6 +123,8 @@ evalview init
 evalview snapshot
 evalview check
 ```
+
+That starter flow can cover single-turn checks, clarification turns, and multi-turn follow-ups against the same baseline.
 
 ### Start Here
 

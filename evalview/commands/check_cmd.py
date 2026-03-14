@@ -221,6 +221,14 @@ def check(test_path: str, test: str, json_output: bool, fail_on: str, strict: bo
             console.print(f"[red]❌ No test found with name: {test}[/red]\n")
             sys.exit(1)
 
+    test_metadata = {
+        tc.name: {
+            "is_multi_turn": bool(getattr(tc, "is_multi_turn", False)),
+            "behavior_class": (tc.meta or {}).get("behavior_class"),
+        }
+        for tc in test_cases
+    }
+
     # Load config
     config = _load_config_if_exists()
 
@@ -322,6 +330,7 @@ def check(test_path: str, test: str, json_output: bool, fail_on: str, strict: bo
         golden_traces=golden_traces,
         results=results,
         ai_root_causes=ai_root_causes,
+        test_metadata=test_metadata,
     )
 
     if execution_failures > 0 and not json_output:

@@ -45,8 +45,18 @@ env/
 .evalview/results/
 .evalview/reports/
 .evalview/config.yaml
+.evalview/golden/
+.evalview/history.jsonl
 tests/test-cases/*.yaml
 !tests/test-cases/example.yaml
+
+# Temp / scratch
+tmp/
+code-review.md
+tests.yaml
+
+# Registry tokens
+.mcpregistry_*
 
 # Testing
 .pytest_cache/

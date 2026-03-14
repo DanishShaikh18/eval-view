@@ -44,6 +44,7 @@ def test_init_generate_path_uses_isolated_onboarding_folder(monkeypatch, tmp_pat
     assert "tests/test-cases/" not in result.output
     assert "Only 2 distinct behavior path was discovered" not in result.output
     assert "Generated Test Preview" in result.output
+    assert "Behavior:" in result.output
     state = (tmp_path / ".evalview" / "state.json").read_text(encoding="utf-8")
     assert "tests/generated-from-init" in state
 
@@ -106,3 +107,4 @@ def test_init_explains_single_draft_as_single_behavior_path(monkeypatch, tmp_pat
     assert result.exit_code == 0, result.output
     assert "Only 1 distinct behavior path was discovered during the lighter init flow" in result.output
     assert "one representative draft test" in result.output
+    assert "clarifications=0" in result.output

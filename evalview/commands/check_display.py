@@ -171,6 +171,7 @@ def _display_check_results(
     golden_traces: Optional[Dict[str, "GoldenTrace"]] = None,
     results: Optional[List["EvaluationResult"]] = None,
     ai_root_causes: Optional[Dict[str, Any]] = None,
+    test_metadata: Optional[Dict[str, Dict[str, Any]]] = None,
 ) -> None:
     """Display check results in JSON or console format."""
     import json
@@ -325,6 +326,10 @@ def _display_check_results(
                         score_part = f"  [{score_color}]{sign}{diff.score_diff:.1f} pts[/{score_color}]"
 
                     console.print(f"{severity_icon}: {name}{score_part}")
+                    meta = (test_metadata or {}).get(name, {})
+                    if meta.get("is_multi_turn"):
+                        behavior_class = str(meta.get("behavior_class") or "multi_turn").replace("_", " ")
+                        console.print(f"    [dim]Multi-turn path:[/dim] {behavior_class}")
 
                     golden_for_test = _goldens.get(name)
                     result_for_test = result_by_name.get(name)
