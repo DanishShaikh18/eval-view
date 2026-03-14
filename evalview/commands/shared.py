@@ -104,7 +104,8 @@ def _detect_agent_endpoint() -> Optional[str]:
     import socket
 
     ports = [8090, 8000, 8080, 3000, 3001, 5000, 5001, 8888, 8081, 4000]
-    paths = ["/invoke", "/api/chat", "/api/agent", "/run", "/chat", "/", "/health"]
+    execute_paths = ["/execute", "/invoke", "/api/chat", "/api/agent", "/run", "/chat", "/"]
+    health_paths = ["/health"]
 
     open_ports = []
     for port in ports:
@@ -117,7 +118,7 @@ def _detect_agent_endpoint() -> Optional[str]:
         return None
 
     for port in open_ports:
-        for path in paths:
+        for path in execute_paths:
             url = f"http://localhost:{port}{path}"
             try:
                 r = httpx.post(url, json={"query": "ping"}, timeout=2.0)
@@ -128,6 +129,15 @@ def _detect_agent_endpoint() -> Optional[str]:
                             return url
                     except Exception:
                         pass
+            except Exception:
+                continue
+
+        for path in health_paths:
+            url = f"http://localhost:{port}{path}"
+            try:
+                r = httpx.get(url, timeout=2.0)
+                if r.status_code == 200:
+                    return f"http://localhost:{port}"
             except Exception:
                 continue
 
