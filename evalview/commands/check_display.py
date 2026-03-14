@@ -292,6 +292,9 @@ def _display_check_results(
                 Celebrations.health_summary(state)
         else:
             console.print("\n[bold]Diff Summary[/bold]")
+            execution_failures = int(analysis.get("execution_failures", 0) or 0)
+            if execution_failures:
+                console.print(f"  {execution_failures} execution {'failure' if execution_failures == 1 else 'failures'}")
             unchanged = sum(1 for _, d in diffs if d.overall_severity == DiffStatus.PASSED)
             console.print(f"  {unchanged}/{len(diffs)} unchanged")
             if analysis["has_regressions"]:

@@ -101,19 +101,34 @@ def _approve_generated_tests(test_cases: List) -> None:
         path.write_text(serialized, encoding="utf-8")
 
 
-def _suggest_generated_snapshot_path(test_path: str, test_cases: List) -> str:
-    """Suggest the narrowest useful path for approving generated drafts."""
+def _generated_snapshot_paths(test_path: str, test_cases: List) -> list[str]:
+    """Suggest the narrowest useful path(s) for approving generated drafts."""
     roots = {
         str(Path(getattr(test_case, "source_file")).parent)
         for test_case in test_cases
         if getattr(test_case, "source_file", None)
     }
-    if len(roots) == 1:
-        only_root = next(iter(roots))
+    if not roots:
+        return [test_path]
+
+    resolved: list[str] = []
+    for root in sorted(roots):
         try:
-            return str(Path(only_root).relative_to(Path.cwd()))
+            resolved.append(str(Path(root).relative_to(Path.cwd())))
         except ValueError:
-            return only_root
+            resolved.append(root)
+    return resolved
+
+
+def _resolve_default_test_path(test_path: str) -> str:
+    """Use the active onboarding/generation folder when the user omitted a path."""
+    if test_path != "tests":
+        return test_path
+    from evalview.core.project_state import ProjectStateStore
+
+    active = ProjectStateStore().get_active_test_path()
+    if active and Path(active).exists():
+        return active
     return test_path
 
 
@@ -184,6 +199,7 @@ def snapshot(test_path: str, notes: str, test: str, variant: str, approve_genera
 
     # Initialize stores
     state_store = ProjectStateStore()
+    test_path = _resolve_default_test_path(test_path)
 
     # Check if this is the first snapshot ever
     is_first = state_store.is_first_snapshot()
@@ -212,12 +228,21 @@ def snapshot(test_path: str, notes: str, test: str, variant: str, approve_genera
 
     draft_generated = [tc for tc in test_cases if _is_generated_draft(tc)]
     if draft_generated and not approve_generated:
-        suggested_path = _suggest_generated_snapshot_path(test_path, draft_generated)
+        suggested_paths = _generated_snapshot_paths(test_path, draft_generated)
         console.print("[yellow]Generated draft tests require approval before snapshotting.[/yellow]")
         for test_case in draft_generated[:8]:
             console.print(f"  • {test_case.name}")
-        console.print("\n[dim]Review the generated YAML, then run: evalview snapshot "
-                      f"{suggested_path} --approve-generated[/dim]\n")
+        console.print()
+        if len(suggested_paths) == 1:
+            console.print(
+                "[dim]Review the generated YAML, then run: evalview snapshot "
+                f"{suggested_paths[0]} --approve-generated[/dim]\n"
+            )
+        else:
+            console.print("[dim]Generated drafts were found in multiple folders. Approve one folder at a time:[/dim]")
+            for path in suggested_paths:
+                console.print(f"[dim]  • evalview snapshot {path} --approve-generated[/dim]")
+            console.print()
         return
     if draft_generated and approve_generated:
         _approve_generated_tests(draft_generated)
@@ -226,6 +251,7 @@ def snapshot(test_path: str, notes: str, test: str, variant: str, approve_genera
                 test_case.meta = {}
             test_case.meta["review_status"] = "approved"
         console.print(f"[green]✓ Approved {len(draft_generated)} generated test(s)[/green]\n")
+        console.print("[dim]Approval marks the YAML as reviewed. The tests still need to pass before a baseline is saved.[/dim]\n")
 
     # Run tests
     console.print(f"[cyan]Running {len(test_cases)} test(s)...[/cyan]\n")
@@ -248,6 +274,10 @@ def snapshot(test_path: str, notes: str, test: str, variant: str, approve_genera
     saved_count = _save_snapshot_results(results, notes, variant=variant)
 
     if saved_count == 0:
+        if draft_generated and approve_generated:
+            console.print(
+                "[dim]These approved generated drafts still failed. Review the YAML expectations or regenerate with broader coverage before snapshotting again.[/dim]\n"
+            )
         return
 
     if failed_count > 0:

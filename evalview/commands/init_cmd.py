@@ -13,6 +13,7 @@ import httpx
 import yaml
 
 from evalview.commands.shared import console, _detect_agent_endpoint
+from evalview.core.project_state import ProjectStateStore
 from evalview.telemetry.decorators import track_command
 from evalview.core.adapter_factory import create_adapter
 from evalview.test_generation import AgentTestGenerator, run_generation
@@ -638,6 +639,7 @@ def _init_standard(dir: str, interactive: bool) -> None:
     console.print("[blue]━━━ EvalView Setup ━━━[/blue]\n")
 
     base_path = Path(dir)
+    state_store = ProjectStateStore(base_path)
 
     (base_path / ".evalview").mkdir(exist_ok=True)
     (base_path / "tests" / "test-cases").mkdir(parents=True, exist_ok=True)
@@ -726,6 +728,7 @@ model:
 
     if path_choice == 1:
         _write_blank_template(tests_dir, endpoint)
+        state_store.set_active_test_path("tests/test-cases")
         console.print(
             f"\n[green]✅ Ready![/green] "
             f"Start capturing real traffic with:\n"
@@ -739,6 +742,7 @@ model:
         console.print(f"[dim]  Writing onboarding drafts to {init_generated_dir}/[/dim]")
         n, report = _generate_init_draft_suite(endpoint, init_generated_dir)
         if n > 0:
+            state_store.set_active_test_path("tests/generated-from-init")
             covered = report.get("covered", {})
             distinct_paths = sum(
                 int(covered.get(key, 0) or 0)
@@ -772,8 +776,10 @@ model:
             console.print("[yellow]⚠️  Could not reach agent to generate draft tests.[/yellow]")
             console.print("[dim]   Creating a blank template in tests/generated-from-init/ instead.[/dim]")
             _write_blank_template(init_generated_dir, endpoint)
+            state_store.set_active_test_path("tests/generated-from-init")
     else:
         _write_blank_template(init_generated_dir, endpoint)
+        state_store.set_active_test_path("tests/generated-from-init")
 
     demo_agent_dir = base_path / "demo-agent"
     if not demo_agent_dir.exists():

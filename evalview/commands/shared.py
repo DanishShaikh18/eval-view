@@ -182,43 +182,46 @@ def _execute_snapshot_tests(
     results = []
     evaluator = Evaluator()
 
-    for tc in test_cases:
+    async def _run_one(tc: "TestCase") -> Optional["EvaluationResult"]:
+        adapter_type = tc.adapter or (config.adapter if config else None)
+        endpoint = tc.endpoint or (config.endpoint if config else None)
+
+        if not adapter_type or not endpoint:
+            console.print(f"[yellow]⚠ Skipping {tc.name}: No adapter/endpoint configured[/yellow]")
+            return None
+
+        allow_private = getattr(config, "allow_private_urls", True) if config else True
         try:
-            adapter_type = tc.adapter or (config.adapter if config else None)
-            endpoint = tc.endpoint or (config.endpoint if config else None)
+            adapter = _create_adapter(adapter_type, endpoint, allow_private_urls=allow_private)
+        except ValueError as e:
+            console.print(f"[yellow]⚠ Skipping {tc.name}: {e}[/yellow]")
+            return None
 
-            if not adapter_type or not endpoint:
-                console.print(f"[yellow]⚠ Skipping {tc.name}: No adapter/endpoint configured[/yellow]")
-                continue
+        trace = await adapter.execute(tc.input.query, tc.input.context)
+        return await evaluator.evaluate(tc, trace)
 
-            allow_private = getattr(config, "allow_private_urls", True) if config else True
-            try:
-                adapter = _create_adapter(adapter_type, endpoint, allow_private_urls=allow_private)
-            except ValueError as e:
-                console.print(f"[yellow]⚠ Skipping {tc.name}: {e}[/yellow]")
-                continue
+    async def _run_all() -> List[Any]:
+        return await asyncio.gather(*[_run_one(tc) for tc in test_cases], return_exceptions=True)
 
-            async def _run_one_test() -> Any:
-                t = await adapter.execute(tc.input.query, tc.input.context)
-                return await evaluator.evaluate(tc, t)
+    outcomes = asyncio.run(_run_all())
 
-            try:
-                result = asyncio.run(_run_one_test())
-            except (asyncio.TimeoutError, asyncio.CancelledError) as e:
-                console.print(f"[red]✗ {tc.name}: Async execution failed - {e}[/red]")
-                continue
-            except Exception:
-                raise
-            results.append(result)
-
-            if result.passed:
-                console.print(f"[green]✓ {tc.name}:[/green] {result.score:.1f}/100")
+    for tc, outcome in zip(test_cases, outcomes):
+        if isinstance(outcome, BaseException):
+            if isinstance(outcome, (asyncio.TimeoutError, asyncio.CancelledError)):
+                console.print(f"[red]✗ {tc.name}: Async execution failed - {outcome}[/red]")
             else:
-                console.print(f"[red]✗ {tc.name}:[/red] {result.score:.1f}/100")
-
-        except Exception as e:
-            console.print(f"[red]✗ {tc.name}: Failed - {e}[/red]")
+                console.print(f"[red]✗ {tc.name}: Failed - {outcome}[/red]")
             continue
+        if outcome is None:
+            continue
+
+        result = outcome
+        results.append(result)
+
+        if result.passed:
+            console.print(f"[green]✓ {tc.name}:[/green] {result.score:.1f}/100")
+        else:
+            console.print(f"[red]✗ {tc.name}:[/red] {result.score:.1f}/100")
 
     return results
 

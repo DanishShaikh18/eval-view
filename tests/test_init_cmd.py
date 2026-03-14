@@ -37,6 +37,8 @@ def test_init_generate_path_uses_isolated_onboarding_folder(monkeypatch, tmp_pat
     assert "evalview check tests/generated-from-init" in result.output
     assert "tests/test-cases/" not in result.output
     assert "Only 2 distinct behavior path was discovered" not in result.output
+    state = (tmp_path / ".evalview" / "state.json").read_text(encoding="utf-8")
+    assert "tests/generated-from-init" in state
 
 
 def test_init_updates_stale_existing_config(monkeypatch, tmp_path):

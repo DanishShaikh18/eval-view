@@ -32,7 +32,8 @@ if TYPE_CHECKING:
 def _compute_check_exit_code(
     diffs: List[Tuple[str, "TraceDiff"]],
     fail_on: Optional[str],
-    strict: bool
+    strict: bool,
+    execution_failures: int = 0,
 ) -> int:
     """Compute exit code based on diff results and fail conditions.
 
@@ -47,11 +48,47 @@ def _compute_check_exit_code(
 
     fail_statuses = _parse_fail_statuses(fail_on)
 
+    if execution_failures > 0:
+        return 1
+
     for _, diff in diffs:
         if diff.overall_severity in fail_statuses:
             return 1
 
     return 0
+
+
+def _summarize_check_targets(test_cases: List[Any], config: Any) -> tuple[list[str], list[str]]:
+    config_endpoint = getattr(config, "endpoint", None) if config else None
+    config_adapter = getattr(config, "adapter", None) if config else None
+    endpoints = sorted({(tc.endpoint or config_endpoint) for tc in test_cases if (tc.endpoint or config_endpoint)})
+    adapters = sorted({(tc.adapter or config_adapter) for tc in test_cases if (tc.adapter or config_adapter)})
+    return endpoints, adapters
+
+
+def _print_check_failure_guidance(test_cases: List[Any], config: Any) -> None:
+    endpoints, adapters = _summarize_check_targets(test_cases, config)
+    if len(endpoints) > 1 or len(adapters) > 1:
+        console.print("[yellow]This check run mixes multiple endpoints or adapters.[/yellow]")
+        if endpoints:
+            console.print(f"[dim]Endpoints: {', '.join(endpoints)}[/dim]")
+        if adapters:
+            console.print(f"[dim]Adapters: {', '.join(adapters)}[/dim]")
+        console.print("[dim]Use a narrower folder such as tests/generated-from-init or rerun evalview init to refresh config.[/dim]\n")
+    else:
+        console.print("[dim]Fix the failing test connections or narrow the test path, then rerun evalview check.[/dim]\n")
+
+
+def _resolve_default_test_path(test_path: str) -> str:
+    """Use the active onboarding/generation folder when the user omitted a path."""
+    if test_path != "tests":
+        return test_path
+    from evalview.core.project_state import ProjectStateStore
+
+    active = ProjectStateStore().get_active_test_path()
+    if active and Path(active).exists():
+        return active
+    return test_path
 
 
 @click.command("check")
@@ -116,6 +153,7 @@ def check(test_path: str, test: str, json_output: bool, fail_on: str, strict: bo
     # Initialize stores
     store = GoldenStore()
     state_store = ProjectStateStore()
+    test_path = _resolve_default_test_path(test_path)
 
     # Check if this is the first check
     is_first_check = state_store.is_first_check()
@@ -209,8 +247,16 @@ def check(test_path: str, test: str, json_output: bool, fail_on: str, strict: bo
     # Execute tests and compare against golden
     diffs, results, drift_tracker, golden_traces = _execute_check_tests(test_cases, config, json_output, semantic_diff, timeout)
 
+    golden_names = {golden.test_name for golden in goldens}
+    baseline_test_cases = [tc for tc in test_cases if tc.name in golden_names]
+    execution_failures = max(0, len(baseline_test_cases) - len(results))
+
     # Analyze diffs
     analysis = _analyze_check_diffs(diffs)
+    analysis["execution_failures"] = execution_failures
+    if execution_failures > 0:
+        analysis["all_passed"] = False
+        analysis["has_execution_failures"] = True
 
     # Update project state
     state = state_store.update_check(
@@ -249,6 +295,9 @@ def check(test_path: str, test: str, json_output: bool, fail_on: str, strict: bo
         results=results,
         ai_root_causes=ai_root_causes,
     )
+
+    if execution_failures > 0 and not json_output:
+        _print_check_failure_guidance(baseline_test_cases, config)
 
     # Generate HTML report if requested
     if report_path and results:
@@ -294,7 +343,7 @@ def check(test_path: str, test: str, json_output: bool, fail_on: str, strict: bo
             console.print(f"[green]◈ CSV exported:[/green] {csv_file_path}\n")
 
     # Compute and exit with code
-    exit_code = _compute_check_exit_code(diffs, fail_on, strict)
+    exit_code = _compute_check_exit_code(diffs, fail_on, strict, execution_failures=execution_failures)
     sys.exit(exit_code)
 
 

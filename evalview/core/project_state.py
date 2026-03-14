@@ -48,6 +48,7 @@ class ProjectState(BaseModel):
     # Onboarding
     conversion_suggestion_shown: bool = False
     semantic_auto_noticed: bool = False
+    active_test_path: Optional[str] = None
 
 
 class ProjectStateStore:
@@ -147,6 +148,17 @@ class ProjectStateStore:
         state = self.load()
         state.conversion_suggestion_shown = True
         self.save(state)
+
+    def set_active_test_path(self, test_path: str) -> None:
+        """Remember the active test folder for path-less snapshot/check commands."""
+        state = self.load()
+        state.active_test_path = test_path
+        self.save(state)
+
+    def get_active_test_path(self) -> Optional[str]:
+        """Return the remembered active test folder, if any."""
+        state = self.load()
+        return state.active_test_path
 
     def days_since_last_check(self) -> Optional[int]:
         """Calculate days since last check.

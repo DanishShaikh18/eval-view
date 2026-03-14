@@ -21,7 +21,7 @@ expected:
     - traceback
 thresholds:
   min_score: 65.0
-  max_latency: 14.0
+  max_latency: 10.0
 adapter: http
 endpoint: http://localhost:8000/execute
 generated: true

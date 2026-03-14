@@ -7,6 +7,7 @@ import click
 
 from evalview.commands.shared import _detect_agent_endpoint, _load_config_if_exists, console
 from evalview.core.adapter_factory import create_adapter
+from evalview.core.project_state import ProjectStateStore
 from evalview.telemetry.decorators import track_command
 from evalview.test_generation import AgentTestGenerator, load_seed_prompts, run_generation
 
@@ -188,6 +189,7 @@ def generate(
         console.print(f"[green]✓ Would generate {len(result.tests)} draft tests[/green]")
     else:
         written = generator.write_suite(result, output_dir)
+        ProjectStateStore().set_active_test_path(out_dir)
         console.print(f"[green]✓ Generated {len(result.tests)} draft tests[/green]")
         console.print(f"[dim]Output:[/dim] {output_dir}")
         console.print(f"[dim]Files written:[/dim] {len(written)}")
