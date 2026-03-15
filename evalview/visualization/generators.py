@@ -17,6 +17,7 @@ from __future__ import annotations
 import json
 import os
 import webbrowser
+from collections import Counter
 from datetime import datetime
 from typing import Any, Dict, List, Optional, TYPE_CHECKING
 
@@ -128,6 +129,7 @@ def _kpis(results: List["EvaluationResult"]) -> Dict[str, Any]:
             latencies.append(r.trace.metrics.total_latency or 0)
         except AttributeError:
             pass
+    models = _collect_models(results)
     return {
         "total": total,
         "passed": passed,
@@ -138,6 +140,66 @@ def _kpis(results: List["EvaluationResult"]) -> Dict[str, Any]:
         "avg_latency_ms": round(sum(latencies) / len(latencies), 0) if latencies else 0,
         "scores": scores,
         "test_names": [r.test_case for r in results],
+        "models": models,
+        "models_display": ", ".join(models) if models else "Unknown",
+    }
+
+
+def _extract_models(result: "EvaluationResult") -> List[str]:
+    """Extract best-effort model labels from a result."""
+    labels: list[str] = []
+    trace = result.trace
+    model_id = getattr(trace, "model_id", None)
+    model_provider = getattr(trace, "model_provider", None)
+    if model_id:
+        labels.append(f"{model_provider}/{model_id}" if model_provider else str(model_id))
+
+    trace_context = getattr(trace, "trace_context", None)
+    if trace_context:
+        for span in trace_context.spans:
+            if span.llm and span.llm.model:
+                provider = span.llm.provider or model_provider
+                labels.append(f"{provider}/{span.llm.model}" if provider else span.llm.model)
+
+    return list(dict.fromkeys(label for label in labels if label))
+
+
+def _collect_models(results: List["EvaluationResult"]) -> List[str]:
+    """Collect model labels across a run, ordered by frequency."""
+    counts: Counter[str] = Counter()
+    for result in results:
+        for label in _extract_models(result):
+            counts[label] += 1
+    return [label for label, _ in counts.most_common()]
+
+
+def _baseline_meta(golden_traces: Optional[Dict[str, Any]]) -> Dict[str, Any]:
+    """Summarize baseline creation metadata."""
+    if not golden_traces:
+        return {
+            "latest_created_display": "Unknown",
+            "models_display": "Unknown",
+        }
+
+    blessed_times: list[datetime] = []
+    model_counts: Counter[str] = Counter()
+    for golden in golden_traces.values():
+        metadata = getattr(golden, "metadata", None)
+        if not metadata:
+            continue
+        blessed_at = getattr(metadata, "blessed_at", None)
+        if isinstance(blessed_at, datetime):
+            blessed_times.append(blessed_at)
+        model_id = getattr(metadata, "model_id", None)
+        model_provider = getattr(metadata, "model_provider", None)
+        if model_id:
+            model_counts[f"{model_provider}/{model_id}" if model_provider else str(model_id)] += 1
+
+    latest_created = max(blessed_times).strftime("%Y-%m-%d %H:%M") if blessed_times else "Unknown"
+    models = [label for label, _ in model_counts.most_common()]
+    return {
+        "latest_created_display": latest_created,
+        "models_display": ", ".join(models) if models else "Unknown",
     }
 
 
@@ -235,8 +297,22 @@ def _timeline_data(results: List["EvaluationResult"]) -> List[Dict[str, Any]]:
     for r in results:
         try:
             steps = r.trace.steps or []
+            fallback_latency = 0.0
+            fallback_cost = 0.0
+            if steps:
+                total_latency = float(getattr(r.trace.metrics, "total_latency", 0) or 0)
+                total_cost = float(getattr(r.trace.metrics, "total_cost", 0) or 0)
+                if not any((getattr(getattr(step, "metrics", None), "latency", 0) or 0) > 0 for step in steps):
+                    fallback_latency = total_latency / len(steps) if total_latency > 0 else 0.0
+                if not any((getattr(getattr(step, "metrics", None), "cost", 0) or 0) > 0 for step in steps):
+                    fallback_cost = total_cost / len(steps) if total_cost > 0 else 0.0
             for step in steps:
                 lat = getattr(step.metrics, "latency", 0) if hasattr(step, "metrics") else 0
+                cost = getattr(step.metrics, "cost", 0) if hasattr(step, "metrics") else 0
+                if (not lat or lat <= 0) and fallback_latency:
+                    lat = fallback_latency
+                if (not cost or cost <= 0) and fallback_cost:
+                    cost = fallback_cost
                 tool = getattr(step, "tool_name", "unknown")[:20]
                 test = r.test_case[:15]
                 rows.append({
@@ -244,6 +320,7 @@ def _timeline_data(results: List["EvaluationResult"]) -> List[Dict[str, Any]]:
                     "tool": tool,
                     "label": f"{test} \u203a {tool}",
                     "latency": round(lat, 1),
+                    "cost": round(cost, 6),
                     "success": getattr(step, "success", True),
                 })
         except AttributeError:
@@ -285,6 +362,7 @@ def generate_visual_report(
         output_path = f".evalview/reports/{ts}.html"
 
     kpis = _kpis(results)
+    baseline = _baseline_meta(golden_traces)
     traces = []
     for r in results:
         try:
@@ -296,12 +374,37 @@ def generate_visual_report(
         except AttributeError:
             cost, latency, tokens = 0.0, 0.0, None
         has_steps = bool(getattr(r.trace, "steps", None))
+        models = _extract_models(r)
+        baseline_created = ""
+        baseline_model = "Unknown"
+        if golden_traces and r.test_case in golden_traces:
+            metadata = getattr(golden_traces[r.test_case], "metadata", None)
+            if metadata:
+                blessed_at = getattr(metadata, "blessed_at", None)
+                if isinstance(blessed_at, datetime):
+                    baseline_created = blessed_at.strftime("%Y-%m-%d %H:%M")
+                model_id = getattr(metadata, "model_id", None)
+                model_provider = getattr(metadata, "model_provider", None)
+                if model_id:
+                    baseline_model = f"{model_provider}/{model_id}" if model_provider else str(model_id)
+                else:
+                    trace_model_id = getattr(getattr(golden_traces[r.test_case], "trace", None), "model_id", None)
+                    trace_model_provider = getattr(getattr(golden_traces[r.test_case], "trace", None), "model_provider", None)
+                    if trace_model_id:
+                        baseline_model = f"{trace_model_provider}/{trace_model_id}" if trace_model_provider else str(trace_model_id)
+                    else:
+                        baseline_model = "Not recorded in snapshot"
 
         # Extract turn and tool info for the trace list view
         turn_list = []
         if has_steps:
             current_t_idx = None
             current_turn_data = None
+            turn_fallback_latency = 0.0
+            turn_fallback_cost = 0.0
+            if not any(getattr(step, "turn_index", None) is not None for step in r.trace.steps):
+                turn_fallback_latency = float(getattr(r.trace.metrics, "total_latency", 0) or 0)
+                turn_fallback_cost = float(getattr(r.trace.metrics, "total_cost", 0) or 0)
             for step in r.trace.steps:
                 t_idx = getattr(step, "turn_index", None)
                 if t_idx is not None:
@@ -311,12 +414,30 @@ def generate_visual_report(
                             "index": t_idx,
                             "query": getattr(step, "turn_query", ""),
                             "tools": [],
+                            "latency_ms": 0.0,
+                            "cost": 0.0,
                         }
                         turn_list.append(current_turn_data)
 
                     if current_turn_data is not None:
                         tool_name = str(getattr(step, "tool_name", None) or getattr(step, "step_name", None) or "unknown")
                         current_turn_data["tools"].append(tool_name)
+                        step_latency = float(getattr(getattr(step, "metrics", None), "latency", 0) or 0)
+                        step_cost = float(getattr(getattr(step, "metrics", None), "cost", 0) or 0)
+                        current_turn_data["latency_ms"] += step_latency
+                        current_turn_data["cost"] += step_cost
+
+            if not turn_list and has_steps:
+                turn_list.append({
+                    "index": 1,
+                    "query": getattr(r, "input_query", "") or "",
+                    "tools": [
+                        str(getattr(step, "tool_name", None) or getattr(step, "step_name", None) or "unknown")
+                        for step in r.trace.steps
+                    ],
+                    "latency_ms": turn_fallback_latency,
+                    "cost": turn_fallback_cost,
+                })
 
         traces.append({
             "name": r.test_case,
@@ -327,6 +448,9 @@ def generate_visual_report(
             "latency": f"{int(latency)}ms",
             "tokens": f"{tokens:,} tokens" if tokens else "",
             "score": round(r.score, 1),
+            "model": ", ".join(models) if models else "Unknown",
+            "baseline_created": baseline_created or "Unknown",
+            "baseline_model": baseline_model,
             "query": getattr(r, "input_query", "") or "",
             "output": _strip_markdown(getattr(r, "actual_output", "") or ""),
             "turns": turn_list,
@@ -351,6 +475,7 @@ def generate_visual_report(
         notes=notes or "",
         generated_at=datetime.now().strftime("%Y-%m-%d %H:%M"),
         kpis=kpis,
+        baseline=baseline,
         traces=traces,
         diff_rows=diff_rows,
         timeline=timeline,
@@ -519,6 +644,15 @@ body::after{width:400px;height:400px;background:rgba(34,211,165,.07);bottom:-100
 .kpi-bar-fill.green{background:linear-gradient(90deg,#22d3a5,#7c95ff)}
 .kpi-bar-fill.red{background:linear-gradient(90deg,#ff6b8a,#fbbf24)}
 .kpi-bar-fill.blue{background:linear-gradient(90deg,#7c95ff,#c084fc)}
+.meta-row{display:grid;grid-template-columns:1.2fr 1fr;gap:16px;margin-bottom:20px}
+.meta-card{
+  background:var(--glass);border:1px solid var(--border);
+  border-radius:var(--r);padding:18px 20px;
+  backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);
+}
+.meta-label{font-size:10px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.1em;margin-bottom:8px}
+.meta-value{font-size:15px;font-weight:700;color:var(--text)}
+.meta-sub{font-size:12px;color:var(--muted);margin-top:4px}
 /* Charts */
 .chart-row{display:grid;grid-template-columns:260px 1fr;gap:16px;margin-bottom:20px}
 .card{
@@ -681,6 +815,19 @@ table tr:hover td{background:rgba(255,255,255,.02)}
       </div>
     </div>
 
+    <div class="meta-row">
+      <div class="meta-card">
+        <div class="meta-label">Models Used In This Check</div>
+        <div class="meta-value">{{ kpis.models_display }}</div>
+        <div class="meta-sub">{{ kpis.total }} test{% if kpis.total != 1 %}s{% endif %} in this run</div>
+      </div>
+      <div class="meta-card">
+        <div class="meta-label">Latest Baseline Snapshot</div>
+        <div class="meta-value">{{ baseline.latest_created_display }}</div>
+        <div class="meta-sub">Baseline model: {{ baseline.models_display }}</div>
+      </div>
+    </div>
+
     <div class="chart-row">
       <div class="card">
         <div class="card-title">Distribution</div>
@@ -743,10 +890,16 @@ table tr:hover td{background:rgba(255,255,255,.02)}
             {% if t.cost != "$0" %}<span>💰 {{ t.cost }}</span>{% endif %}
             <span>⚡ {{ t.latency }}</span>
             {% if t.tokens %}<span>🔤 {{ t.tokens }}</span>{% endif %}
+            <span>🧠 {{ t.model }}</span>
           </span>
           <span class="chevron">▾</span>
         </div>
         <div id="tr{{ loop.index }}" class="item-body" {% if not loop.first %}style="display:none"{% endif %}>
+          <div style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:14px">
+            <span class="badge b-blue">Current model: {{ t.model }}</span>
+            <span class="badge b-purple">Baseline: {{ t.baseline_created }}</span>
+            <span class="badge b-yellow">Baseline model: {{ t.baseline_model }}</span>
+          </div>
           {% if t.query %}
           <div style="background:rgba(124,149,255,.06);border:1px solid rgba(124,149,255,.2);border-radius:8px;padding:10px 14px;margin-bottom:14px;font-size:12px;color:var(--muted)">
             <span style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:rgba(124,149,255,.7);margin-right:8px">Query</span>{{ t.query }}
@@ -779,6 +932,10 @@ table tr:hover td{background:rgba(255,255,255,.02)}
                       <span style="opacity: 0.5;">None</span>
                     {% endif %}
                   </div>
+                </div>
+                <div style="display:flex;align-items:center;gap:12px;margin-top:10px;color:var(--muted);font-size:11px;font-family:var(--font)">
+                  <span>⚡ {{ turn.latency_ms|round(1) }}ms</span>
+                  <span>💰 ${{ '%.6f'|format(turn.cost) if turn.cost else '0' }}</span>
                 </div>
                 
               </div>
@@ -1014,18 +1171,29 @@ function tog(id,head){
   if(!tl.length) return;
   const labels=tl.map(r=>r.label||(r.test+' \u203a '+r.tool));
   const vals=tl.map(r=>r.latency||0);
+  const costs=tl.map(r=>r.cost||0);
   const colors=tl.map(r=>r.success?'rgba(124,149,255,.65)':'rgba(255,107,138,.65)');
   const borders=tl.map(r=>r.success?'rgba(124,149,255,.9)':'rgba(255,107,138,.9)');
+  const maxLatency=Math.max(...vals, 0);
   new Chart(document.getElementById('tlChart'),{
     type:'bar',
     data:{labels,datasets:[{label:'ms',data:vals,backgroundColor:colors,borderColor:borders,borderWidth:1,borderRadius:4,borderSkipped:false}]},
     options:{
       indexAxis:'y',responsive:true,maintainAspectRatio:false,
       scales:{
-        x:{grid:{color:'rgba(255,255,255,.04)'},ticks:{color:'rgba(122,143,166,.8)',callback:v=>v+'ms'},border:{display:false}},
+        x:{
+          suggestedMax:maxLatency > 0 ? maxLatency * 1.15 : 1,
+          grid:{color:'rgba(255,255,255,.04)'},
+          ticks:{color:'rgba(122,143,166,.8)',callback:v=>v+'ms'},
+          border:{display:false}
+        },
         y:{grid:{display:false},ticks:{color:'rgba(122,143,166,.8)',font:{size:11}},border:{display:false}}
       },
-      plugins:{legend:{display:false},tooltip:{callbacks:{label:ctx=>` ${ctx.raw}ms`,title:ctx=>ctx[0].label}}}
+      plugins:{legend:{display:false},tooltip:{callbacks:{
+        label:ctx=>` ${ctx.raw}ms`,
+        afterLabel:ctx=>` Cost: $${(costs[ctx.dataIndex] || 0).toFixed(6)}`,
+        title:ctx=>ctx[0].label
+      }}}
     }
   });
 })();
