@@ -97,6 +97,8 @@ def test_visual_report_shows_model_and_baseline_metadata(tmp_path):
     assert "Latest Baseline Snapshot" in html
     assert "2026-03-14 12:15" in html
     assert "Baseline model: openai/gpt-4o-mini" in html
+    assert "Execution Cost per Query" in html
+    assert "Trace Cost" in html
 
 
 def test_visual_report_falls_back_for_missing_step_latency_and_baseline_model(tmp_path):
@@ -184,3 +186,5 @@ def test_visual_report_falls_back_for_missing_step_latency_and_baseline_model(tm
     assert "💰 $0.004000" in html
     assert '"latency": 200.0' in html
     assert '"cost": 0.002' in html
+    assert "mock-support-agent" in html
+    assert "Trace cost comes from the agent execution trace only" in html

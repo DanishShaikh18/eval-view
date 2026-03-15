@@ -839,15 +839,16 @@ table tr:hover td{background:rgba(255,255,255,.02)}
       </div>
     </div>
 
-    <!-- Cost per query breakdown -->
+    <!-- Execution cost breakdown -->
     <div class="card">
-      <div class="card-title">Cost per Query</div>
+      <div class="card-title">Execution Cost per Query</div>
       <table style="width:100%;border-collapse:collapse;font-size:13px">
         {% set has_tokens = traces | selectattr('tokens') | list | length > 0 %}
         <thead>
           <tr>
             <th style="text-align:left;padding:8px 12px;color:var(--muted);font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;border-bottom:1px solid var(--border)">Test</th>
-            <th style="text-align:left;padding:8px 12px;color:var(--muted);font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;border-bottom:1px solid var(--border)">LLM Cost</th>
+            <th style="text-align:left;padding:8px 12px;color:var(--muted);font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;border-bottom:1px solid var(--border)">Model</th>
+            <th style="text-align:left;padding:8px 12px;color:var(--muted);font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;border-bottom:1px solid var(--border)">Trace Cost</th>
             {% if has_tokens %}<th style="text-align:left;padding:8px 12px;color:var(--muted);font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;border-bottom:1px solid var(--border)">Tokens</th>{% endif %}
             <th style="text-align:left;padding:8px 12px;color:var(--muted);font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;border-bottom:1px solid var(--border)">Latency</th>
             <th style="text-align:left;padding:8px 12px;color:var(--muted);font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;border-bottom:1px solid var(--border)">Score</th>
@@ -857,6 +858,7 @@ table tr:hover td{background:rgba(255,255,255,.02)}
           {% for t in traces %}
           <tr>
             <td style="padding:10px 12px;border-bottom:1px solid var(--border);font-weight:500">{{ t.name }}</td>
+            <td style="padding:10px 12px;border-bottom:1px solid var(--border);color:var(--muted)">{{ t.model }}</td>
             <td style="padding:10px 12px;border-bottom:1px solid var(--border);font-family:monospace;color:{% if t.cost == '$0' %}var(--muted){% else %}var(--blue){% endif %};font-weight:600">{{ t.cost }}</td>
             {% if has_tokens %}<td style="padding:10px 12px;border-bottom:1px solid var(--border);color:var(--muted)">{{ t.tokens or '—' }}</td>{% endif %}
             <td style="padding:10px 12px;border-bottom:1px solid var(--border);color:var(--muted)">{{ t.latency }}</td>
@@ -865,11 +867,15 @@ table tr:hover td{background:rgba(255,255,255,.02)}
           {% endfor %}
           <tr style="background:rgba(255,255,255,.02)">
             <td style="padding:10px 12px;font-weight:700;color:var(--text)">Total</td>
+            <td style="padding:10px 12px;color:var(--muted)">—</td>
             <td style="padding:10px 12px;font-family:monospace;font-weight:700;color:var(--blue)">${{ kpis.total_cost }}</td>
             <td colspan="{{ 3 if has_tokens else 2 }}" style="padding:10px 12px;font-size:11px;color:var(--muted)">avg ${{ '%.6f'|format(kpis.total_cost / kpis.total) if kpis.total else '0' }} per query</td>
           </tr>
         </tbody>
       </table>
+      <div style="margin-top:12px;font-size:11px;color:var(--muted)">
+        Trace cost comes from the agent execution trace only. Mock or non-metered tools will show <code style="background:rgba(255,255,255,.08);padding:2px 6px;border-radius:4px">$0</code> even when EvalView used a separate judge or local model during evaluation.
+      </div>
     </div>
 
     {% else %}
