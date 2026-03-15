@@ -69,6 +69,43 @@ class SlackNotifier:
             logger.warning("Slack notification failed: %s", e)
             return False
 
+    async def send_cost_latency_alert(
+        self,
+        alerts: List[Dict[str, Any]],
+    ) -> bool:
+        """Send cost/latency spike alerts to Slack.
+
+        Args:
+            alerts: List of dicts with keys: test_name, alert_type, current, baseline, multiplier.
+        """
+        lines = []
+        for a in alerts:
+            if a["alert_type"] == "cost_spike":
+                lines.append(
+                    f":money_with_wings: *{a['test_name']}* — cost spike: "
+                    f"${a['baseline']:.4f} → ${a['current']:.4f} ({a['multiplier']:.1f}x)"
+                )
+            else:
+                lines.append(
+                    f":hourglass: *{a['test_name']}* — latency spike: "
+                    f"{a['baseline']:.1f}s → {a['current']:.1f}s ({a['multiplier']:.1f}x)"
+                )
+
+        text = (
+            f":chart_with_upwards_trend: *EvalView Monitor — Performance Alert*\n\n"
+            + "\n".join(lines)
+            + "\n\n_Run `evalview check` for full details._"
+        )
+
+        try:
+            async with httpx.AsyncClient(timeout=10.0) as client:
+                resp = await client.post(self.webhook_url, json={"text": text})
+                resp.raise_for_status()
+                return True
+        except Exception as e:
+            logger.warning("Slack notification failed: %s", e)
+            return False
+
     async def send_recovery_alert(self, total_tests: int) -> bool:
         """Send a recovery notification when all tests pass again."""
         payload = {

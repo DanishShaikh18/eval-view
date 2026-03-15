@@ -239,6 +239,15 @@ def _display_check_results(
                     "model_changed": getattr(diff, "model_changed", False),
                     "golden_model_id": getattr(diff, "golden_model_id", None),
                     "actual_model_id": getattr(diff, "actual_model_id", None),
+                    "turn_diffs": [
+                        {
+                            "turn": td.turn_index,
+                            "baseline_tools": td.baseline_tools,
+                            "current_tools": td.current_tools,
+                            "status": td.status.value,
+                        }
+                        for td in (diff.turn_diffs or [])
+                    ] or None,
                     "root_cause": (
                         root_cause_by_name[name].to_dict()
                         if root_cause_by_name.get(name) is not None
@@ -337,6 +346,19 @@ def _display_check_results(
 
                     if diff.tool_diffs:
                         _print_parameter_diffs(diff.tool_diffs)
+
+                    # Per-turn breakdown for multi-turn tests
+                    if diff.turn_diffs:
+                        changed_turns = [td for td in diff.turn_diffs if td.status != DiffStatus.PASSED]
+                        if changed_turns:
+                            console.print("    [dim]Per-turn breakdown:[/dim]")
+                            for td in changed_turns:
+                                baseline_str = ", ".join(td.baseline_tools) or "(none)"
+                                current_str = ", ".join(td.current_tools) or "(none)"
+                                console.print(
+                                    f"      [yellow]Turn {td.turn_index}:[/yellow] "
+                                    f"[red]{baseline_str}[/red] → [green]{current_str}[/green]"
+                                )
 
                     _print_output_diff(diff)
 

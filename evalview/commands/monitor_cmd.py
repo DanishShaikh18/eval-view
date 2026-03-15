@@ -9,7 +9,7 @@ import sys
 import time
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any, Optional, Set
+from typing import Any, Dict, List, Optional, Set
 
 import click
 
@@ -53,6 +53,49 @@ def _append_history(history_path: Path, record: dict) -> None:
         f.write(json.dumps(record) + "\n")
 
 
+def _detect_spikes(
+    results: List[Any],
+    golden_traces: Dict[str, Any],
+    cost_threshold: Optional[float],
+    latency_threshold: Optional[float],
+) -> List[Dict[str, Any]]:
+    """Compare current cost/latency against golden baselines. Returns list of alerts."""
+    alerts: List[Dict[str, Any]] = []
+    if not cost_threshold and not latency_threshold:
+        return alerts
+
+    for r in results:
+        name = r.test_case
+        golden = golden_traces.get(name)
+        if not golden:
+            continue
+
+        baseline_cost = golden.trace.metrics.total_cost
+        baseline_latency = golden.trace.metrics.total_latency
+        current_cost = r.trace.metrics.total_cost
+        current_latency = r.trace.metrics.total_latency
+
+        if cost_threshold and baseline_cost > 0 and current_cost / baseline_cost > cost_threshold:
+            alerts.append({
+                "test_name": name,
+                "alert_type": "cost_spike",
+                "current": current_cost,
+                "baseline": baseline_cost,
+                "multiplier": current_cost / baseline_cost,
+            })
+
+        if latency_threshold and baseline_latency > 0 and current_latency / baseline_latency > latency_threshold:
+            alerts.append({
+                "test_name": name,
+                "alert_type": "latency_spike",
+                "current": current_latency,
+                "baseline": baseline_latency,
+                "multiplier": current_latency / baseline_latency,
+            })
+
+    return alerts
+
+
 def _run_monitor_loop(
     test_path: str,
     interval: int,
@@ -62,6 +105,8 @@ def _run_monitor_loop(
     test_filter: Optional[str],
     config: Any = None,
     history_path: Optional[Path] = None,
+    cost_threshold: Optional[float] = None,
+    latency_threshold: Optional[float] = None,
 ) -> None:
     """Main monitor loop. Runs check cycles until Ctrl+C.
 
@@ -122,7 +167,7 @@ def _run_monitor_loop(
             console.print(f"[dim][{now}][/dim] {get_random_monitor_cycle_message()}")
 
             try:
-                diffs, results, _, _ = _execute_check_tests(
+                diffs, results, _, golden_traces = _execute_check_tests(
                     test_cases, config, json_output=True, timeout=timeout
                 )
             except Exception as e:
@@ -179,6 +224,24 @@ def _run_monitor_loop(
                     asyncio.run(notifier.send_regression_alert(alert_diffs, analysis))
                     console.print(f"[dim]  📤 Slack: alerted on {len(new_failures)} new failure(s)[/dim]")
 
+            # Detect cost/latency spikes against golden baselines
+            spike_alerts = _detect_spikes(results, golden_traces, cost_threshold, latency_threshold)
+            if spike_alerts:
+                for a in spike_alerts:
+                    if a["alert_type"] == "cost_spike":
+                        console.print(
+                            f"  [yellow]💰 {a['test_name']}: cost spike "
+                            f"${a['baseline']:.4f} → ${a['current']:.4f} ({a['multiplier']:.1f}x)[/yellow]"
+                        )
+                    else:
+                        console.print(
+                            f"  [yellow]⏱  {a['test_name']}: latency spike "
+                            f"{a['baseline']:.1f}s → {a['current']:.1f}s ({a['multiplier']:.1f}x)[/yellow]"
+                        )
+                if notifier:
+                    asyncio.run(notifier.send_cost_latency_alert(spike_alerts))
+                    console.print(f"[dim]  📤 Slack: {len(spike_alerts)} performance alert(s) sent[/dim]")
+
             # Append cycle record to JSONL history file if requested
             if history_path is not None:
                 record = {
@@ -191,6 +254,8 @@ def _run_monitor_loop(
                     "output_changed": output_changed,
                     "cost": round(cycle_cost, 6),
                     "failing_tests": sorted(currently_failing),
+                    "cost_alerts": sum(1 for a in spike_alerts if a["alert_type"] == "cost_spike"),
+                    "latency_alerts": sum(1 for a in spike_alerts if a["alert_type"] == "latency_spike"),
                 }
                 _append_history(history_path, record)
 
@@ -231,6 +296,8 @@ def _sleep_interruptible(seconds: int, should_stop: Any) -> None:
     type=click.Path(),
     help="Append each cycle's results to a JSONL file",
 )
+@click.option("--alert-cost-spike", "cost_spike", type=float, default=None, help="Alert when cost exceeds baseline by this multiplier (e.g. 2.0)")
+@click.option("--alert-latency-spike", "latency_spike", type=float, default=None, help="Alert when latency exceeds baseline by this multiplier (e.g. 3.0)")
 @track_command("monitor")
 def monitor(
     test_path: str,
@@ -240,6 +307,8 @@ def monitor(
     timeout: Optional[float],
     test_filter: Optional[str],
     history_path: Optional[str],
+    cost_spike: Optional[float],
+    latency_spike: Optional[float],
 ) -> None:
     """Continuously check for regressions with optional Slack alerts.
 
@@ -254,6 +323,8 @@ def monitor(
         evalview monitor --test "weather-lookup"        # Monitor one test
         evalview monitor --fail-on REGRESSION,TOOLS_CHANGED
         evalview monitor --history monitor_log.jsonl    # Persist cycle history
+        evalview monitor --alert-cost-spike 2.0        # Alert if cost doubles
+        evalview monitor --alert-latency-spike 3.0     # Alert if latency triples
 
     \b
     Configuration (config.yaml):
@@ -261,6 +332,8 @@ def monitor(
           interval: 300
           slack_webhook: https://hooks.slack.com/services/...
           fail_on: [REGRESSION]
+          cost_threshold: 2.0
+          latency_threshold: 3.0
 
     \b
     Environment variables:
@@ -286,6 +359,8 @@ def monitor(
         sys.exit(1)
 
     resolved_history = Path(history_path) if history_path else None
+    resolved_cost_threshold = cost_spike or (monitor_cfg.cost_threshold if monitor_cfg else None)
+    resolved_latency_threshold = latency_spike or (monitor_cfg.latency_threshold if monitor_cfg else None)
 
     try:
         _run_monitor_loop(
@@ -297,6 +372,8 @@ def monitor(
             test_filter=test_filter,
             config=config,
             history_path=resolved_history,
+            cost_threshold=resolved_cost_threshold,
+            latency_threshold=resolved_latency_threshold,
         )
     except MonitorError as e:
         console.print(f"[red]❌ {e}[/red]")

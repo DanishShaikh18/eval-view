@@ -12,6 +12,7 @@ Storage format:
 
 import json
 import hashlib
+from collections import defaultdict
 from pathlib import Path
 from datetime import datetime
 from typing import Optional, Dict, Any, List
@@ -48,6 +49,7 @@ class GoldenTrace(BaseModel):
     # Key fields extracted for easy comparison
     tool_sequence: List[str] = Field(default_factory=list)
     output_hash: str = ""  # Hash of final output for quick comparison
+    per_turn_tool_sequences: Optional[List[List[str]]] = Field(default=None)
 
 
 class GoldenStore:
@@ -123,6 +125,16 @@ class GoldenStore:
         # Extract tool sequence
         tool_sequence = [step.tool_name for step in result.trace.steps]
 
+        # Build per-turn tool sequences for multi-turn tests
+        per_turn: Optional[List[List[str]]] = None
+        if any(step.turn_index is not None for step in result.trace.steps):
+            turns_map: Dict[int, List[str]] = defaultdict(list)
+            for step in result.trace.steps:
+                idx = step.turn_index if step.turn_index is not None else 1
+                turns_map[idx].append(step.tool_name)
+            max_turn = max(turns_map.keys()) if turns_map else 0
+            per_turn = [turns_map.get(t, []) for t in range(1, max_turn + 1)]
+
         # Create golden trace
         golden = GoldenTrace(
             metadata=GoldenMetadata(
@@ -138,6 +150,7 @@ class GoldenStore:
             trace=result.trace,
             tool_sequence=tool_sequence,
             output_hash=self._hash_output(result.trace.final_output),
+            per_turn_tool_sequences=per_turn,
         )
 
         # Save

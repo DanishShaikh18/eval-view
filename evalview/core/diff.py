@@ -8,7 +8,8 @@ The diff engine provides deterministic comparison that:
 
 from dataclasses import dataclass, field
 from enum import Enum
-from typing import List, Optional, Any
+from collections import defaultdict
+from typing import Dict, List, Optional, Any
 from difflib import SequenceMatcher, unified_diff
 import logging
 
@@ -88,6 +89,16 @@ class OutputDiff:
 
 
 @dataclass
+class TurnDiff:
+    """Difference in tool usage for a single turn in a multi-turn test."""
+
+    turn_index: int
+    baseline_tools: List[str]
+    current_tools: List[str]
+    status: DiffStatus
+
+
+@dataclass
 class TraceDiff:
     """Complete diff between golden and actual trace."""
 
@@ -99,6 +110,7 @@ class TraceDiff:
     latency_diff: float  # actual_latency - golden_latency (ms)
     overall_severity: DiffSeverity
     matched_variant: Optional[str] = None  # Which golden variant was matched (for multi-reference)
+    turn_diffs: Optional[List[TurnDiff]] = None  # Per-turn breakdown for multi-turn tests
 
     # Model version tracking — populated when the golden metadata and the
     # actual trace both carry model_id. Allows the CLI to alert users when
@@ -126,6 +138,10 @@ class TraceDiff:
             if not added and not removed and not changed:
                 n = len(self.tool_diffs)
                 parts.append(f"{n} tool {'change' if n == 1 else 'changes'}")
+        if self.turn_diffs:
+            turns_changed = sum(1 for td in self.turn_diffs if td.status != DiffStatus.PASSED)
+            if turns_changed:
+                parts.append(f"{turns_changed}/{len(self.turn_diffs)} turns changed")
         if self.output_diff and self.output_diff.similarity < 0.95:
             parts.append(f"output similarity: {self.output_diff.similarity:.0%}")
         if abs(self.score_diff) > 5:
@@ -288,6 +304,16 @@ class DiffEngine:
             # No significant differences - PASSED
             overall_severity = DiffStatus.PASSED
 
+        # Per-turn comparison for multi-turn tests
+        turn_diffs = self._compare_per_turn(golden, actual)
+
+        # Escalate overall severity if any turn regressed
+        if turn_diffs:
+            has_turn_change = any(td.status != DiffStatus.PASSED for td in turn_diffs)
+            if has_turn_change and overall_severity == DiffStatus.PASSED:
+                overall_severity = DiffStatus.TOOLS_CHANGED
+                has_differences = True
+
         # Detect model version change between snapshot and current run.
         # Requires both the golden metadata and the actual trace to carry model_id.
         golden_model_id = golden.metadata.model_id
@@ -306,6 +332,7 @@ class DiffEngine:
             score_diff=score_diff,
             latency_diff=latency_diff,
             overall_severity=overall_severity,
+            turn_diffs=turn_diffs,
             model_changed=model_changed,
             golden_model_id=golden_model_id,
             actual_model_id=actual_model_id,
@@ -555,6 +582,54 @@ class DiffEngine:
                     ))
 
         return diffs
+
+    def _compare_per_turn(
+        self,
+        golden: GoldenTrace,
+        actual: ExecutionTrace,
+    ) -> Optional[List[TurnDiff]]:
+        """Compare tool usage per turn for multi-turn tests.
+
+        Args:
+            golden: Golden trace (must have per_turn_tool_sequences)
+            actual: Actual execution trace
+
+        Returns:
+            List of TurnDiff or None if not a multi-turn test
+        """
+        if not golden.per_turn_tool_sequences:
+            return None
+
+        # Build actual per-turn tool sequences from step traces
+        actual_turns: Dict[int, List[str]] = defaultdict(list)
+        for step in actual.steps:
+            idx = step.turn_index if step.turn_index is not None else 1
+            actual_turns[idx].append(step.tool_name)
+
+        max_turn = max(
+            len(golden.per_turn_tool_sequences),
+            max(actual_turns.keys()) if actual_turns else 0,
+        )
+
+        turn_diffs: List[TurnDiff] = []
+        for t in range(1, max_turn + 1):
+            baseline = golden.per_turn_tool_sequences[t - 1] if t <= len(golden.per_turn_tool_sequences) else []
+            current = actual_turns.get(t, [])
+
+            if baseline == current:
+                status = DiffStatus.PASSED
+            else:
+                similarity = SequenceMatcher(None, baseline, current).ratio()
+                status = DiffStatus.PASSED if similarity >= self.tool_threshold else DiffStatus.TOOLS_CHANGED
+
+            turn_diffs.append(TurnDiff(
+                turn_index=t,
+                baseline_tools=baseline,
+                current_tools=current,
+                status=status,
+            ))
+
+        return turn_diffs
 
     def _compare_outputs(
         self, golden_output: str, actual_output: str

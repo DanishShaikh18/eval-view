@@ -185,6 +185,14 @@ class MonitorConfig(BaseModel):
         ge=1.0,
         description="Timeout per test in seconds"
     )
+    cost_threshold: Optional[float] = Field(
+        default=None,
+        description="Alert when test cost exceeds baseline by this multiplier (e.g. 2.0 = 2x)"
+    )
+    latency_threshold: Optional[float] = Field(
+        default=None,
+        description="Alert when test latency exceeds baseline by this multiplier (e.g. 3.0 = 3x)"
+    )
 
 
 class EvalViewConfig(BaseModel):

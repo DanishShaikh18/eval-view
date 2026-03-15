@@ -197,7 +197,10 @@ def _execute_snapshot_tests(
             console.print(f"[yellow]⚠ Skipping {tc.name}: {e}[/yellow]")
             return None
 
-        trace = await adapter.execute(tc.input.query, tc.input.context)
+        if tc.is_multi_turn:
+            trace = await _execute_multi_turn_trace(tc, adapter)
+        else:
+            trace = await adapter.execute(tc.input.query, tc.input.context)
         return await evaluator.evaluate(tc, trace)
 
     async def _run_all() -> List[Any]:
@@ -283,7 +286,10 @@ def _execute_check_tests(
                 console.print(f"[yellow]⚠ Skipping {tc.name}: {e}[/yellow]")
             return None
 
-        trace = await adapter.execute(tc.input.query, tc.input.context)
+        if tc.is_multi_turn:
+            trace = await _execute_multi_turn_trace(tc, adapter)
+        else:
+            trace = await adapter.execute(tc.input.query, tc.input.context)
         result = await evaluator.evaluate(tc, trace)
 
         golden_variants = store.load_all_golden_variants(tc.name)
