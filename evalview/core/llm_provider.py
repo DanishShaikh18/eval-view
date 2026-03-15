@@ -658,7 +658,7 @@ class LLMClient:
 
         # Strategy 4: Return a default evaluation if we can't parse
         # Look for keywords to make a best-effort score
-        logger.warning(f"Could not parse JSON from Ollama response: {text[:200]}...")
+        logger.debug("Could not parse JSON from Ollama response; using best-effort fallback")
 
         # Try to extract a score from the text if mentioned
         score_match = re.search(r"(\d{1,3})(?:/100|%| out of 100| points)", text.lower())
