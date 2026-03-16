@@ -158,7 +158,7 @@ def _format_snapshot_timestamp(snapshot_at: datetime) -> str:
     ),
 )
 @click.option("--budget", type=float, default=None, help="Maximum total budget in dollars.")
-@click.option("--timeout", type=float, default=30.0, help="Timeout per test in seconds (default: 30.0).")
+@click.option("--timeout", type=float, default=120.0, help="Timeout per test in seconds (default: 120.0).")
 @click.option("--dry-run", "dry_run", is_flag=True, default=False, help="Preview test plan without executing.")
 @click.option("--ai-root-cause", "ai_root_cause", is_flag=True, default=False, help="Use AI to explain low-confidence regressions (requires LLM provider).")
 @track_command("check")

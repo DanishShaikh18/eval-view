@@ -69,6 +69,17 @@ class _FakeAdapter:
             )
             steps = []
             latency = 120.0
+        elif "example requests" in lowered or "example tasks" in lowered:
+            output = (
+                'Sure! Try: "What\'s the weather in London in Fahrenheit?" '
+                'or "What is 25 times 4?"'
+            )
+            steps = []
+            latency = 80.0
+        elif "types of data" in lowered or "information do you work with" in lowered:
+            output = "I work with weather data and mathematical expressions."
+            steps = []
+            latency = 60.0
         elif "weather" in lowered:
             output = "San Francisco is 63 degrees and sunny."
             steps = [
@@ -203,28 +214,36 @@ class _DomainSeedAdapter:
         )
 
 
+def _patch_generate_for_fake_adapter(monkeypatch, adapter_cls=None):
+    """Common monkeypatches for generate tests using fake adapters."""
+    monkeypatch.setattr("evalview.commands.generate_cmd.create_adapter", lambda **kwargs: (adapter_cls or _FakeAdapter)())
+    monkeypatch.setattr("evalview.commands.generate_cmd._detect_agent_endpoint", lambda: "http://localhost:8000")
+    monkeypatch.setattr("evalview.commands.generate_cmd._load_config_if_exists", lambda: None)
+    # Prevent real LLM calls during synthesis in tests
+    monkeypatch.setattr(
+        "evalview.test_generation.AgentTestGenerator._select_synthesis_client",
+        staticmethod(lambda: None),
+    )
+
+
 def test_generate_writes_clustered_draft_suite(monkeypatch, tmp_path):
     """Generate should write one draft test per distinct behavior path."""
     from evalview.commands.generate_cmd import generate
 
     monkeypatch.chdir(tmp_path)
-    monkeypatch.setattr("evalview.commands.generate_cmd.create_adapter", lambda **kwargs: _FakeAdapter())
-    monkeypatch.setattr("evalview.commands.generate_cmd._detect_agent_endpoint", lambda: "http://localhost:8000")
-    monkeypatch.setattr("evalview.commands.generate_cmd._load_config_if_exists", lambda: None)
+    _patch_generate_for_fake_adapter(monkeypatch)
 
     runner = CliRunner()
-    result = runner.invoke(generate, ["--budget", "8", "--out", "tests/generated"])
+    result = runner.invoke(generate, ["--budget", "8", "--out", "tests/generated"], input="y\n")
 
     assert result.exit_code == 0, result.output
     out_dir = tmp_path / "tests" / "generated"
     assert out_dir.exists()
-    assert "generated.report.json" in result.output
-    assert "HTML report" in result.output
-    assert "Generated Test Preview" in result.output
-    assert "Behavior:" in result.output
-    assert "source:" in result.output
+    assert "Full Test YAML" in result.output
+    assert "Generated Tests" in result.output
     assert "Prompt sources" in result.output
-    assert "name:" in result.output
+    assert "Save these" in result.output
+    assert "Want more coverage?" in result.output
 
     yaml_files = sorted(out_dir.glob("*.yaml"))
     assert len(yaml_files) >= 4
@@ -233,7 +252,7 @@ def test_generate_writes_clustered_draft_suite(monkeypatch, tmp_path):
     assert "generated: true" in first_yaml
     assert "max_latency:" not in first_yaml
     all_yaml = "\n".join(path.read_text(encoding="utf-8") for path in yaml_files)
-    assert "name: Capability Overview" in all_yaml
+    assert "name: Capability overview" in all_yaml
     assert "name: Hello" not in all_yaml
     assert "max_latency:" not in all_yaml
     assert "prompt_source:" in all_yaml
@@ -263,9 +282,7 @@ def test_generate_dry_run_does_not_write_files(monkeypatch, tmp_path):
     from evalview.commands.generate_cmd import generate
 
     monkeypatch.chdir(tmp_path)
-    monkeypatch.setattr("evalview.commands.generate_cmd.create_adapter", lambda **kwargs: _FakeAdapter())
-    monkeypatch.setattr("evalview.commands.generate_cmd._detect_agent_endpoint", lambda: "http://localhost:8000")
-    monkeypatch.setattr("evalview.commands.generate_cmd._load_config_if_exists", lambda: None)
+    _patch_generate_for_fake_adapter(monkeypatch)
 
     runner = CliRunner()
     result = runner.invoke(generate, ["--budget", "6", "--dry-run"])
@@ -293,12 +310,10 @@ def test_generate_uses_project_docs_as_cold_start_seed_prompts(monkeypatch, tmp_
         ),
         encoding="utf-8",
     )
-    monkeypatch.setattr("evalview.commands.generate_cmd.create_adapter", lambda **kwargs: _DomainSeedAdapter())
-    monkeypatch.setattr("evalview.commands.generate_cmd._detect_agent_endpoint", lambda: "http://localhost:8000")
-    monkeypatch.setattr("evalview.commands.generate_cmd._load_config_if_exists", lambda: None)
+    _patch_generate_for_fake_adapter(monkeypatch, adapter_cls=_DomainSeedAdapter)
 
     runner = CliRunner()
-    result = runner.invoke(generate, ["--budget", "3", "--out", "tests/generated"])
+    result = runner.invoke(generate, ["--budget", "3", "--out", "tests/generated"], input="y\n")
 
     assert result.exit_code == 0, result.output
     report = json.loads((tmp_path / "tests" / "generated" / "generated.report.json").read_text(encoding="utf-8"))
@@ -326,12 +341,10 @@ def test_generate_uses_existing_curated_tests_as_seed_prompts(monkeypatch, tmp_p
         encoding="utf-8",
     )
 
-    monkeypatch.setattr("evalview.commands.generate_cmd.create_adapter", lambda **kwargs: _DomainSeedAdapter())
-    monkeypatch.setattr("evalview.commands.generate_cmd._detect_agent_endpoint", lambda: "http://localhost:8000")
-    monkeypatch.setattr("evalview.commands.generate_cmd._load_config_if_exists", lambda: None)
+    _patch_generate_for_fake_adapter(monkeypatch, adapter_cls=_DomainSeedAdapter)
 
     runner = CliRunner()
-    result = runner.invoke(generate, ["--budget", "3", "--out", "tests/generated"])
+    result = runner.invoke(generate, ["--budget", "3", "--out", "tests/generated"], input="y\n")
 
     assert result.exit_code == 0, result.output
     report = json.loads((tmp_path / "tests" / "generated" / "generated.report.json").read_text(encoding="utf-8"))
@@ -353,12 +366,10 @@ def test_generate_replaces_existing_generated_drafts_by_default(monkeypatch, tmp
     )
     (out_dir / "generated.report.json").write_text('{"old": true}', encoding="utf-8")
 
-    monkeypatch.setattr("evalview.commands.generate_cmd.create_adapter", lambda **kwargs: _FakeAdapter())
-    monkeypatch.setattr("evalview.commands.generate_cmd._detect_agent_endpoint", lambda: "http://localhost:8000")
-    monkeypatch.setattr("evalview.commands.generate_cmd._load_config_if_exists", lambda: None)
+    _patch_generate_for_fake_adapter(monkeypatch)
 
     runner = CliRunner()
-    result = runner.invoke(generate, ["--budget", "8", "--out", "tests/generated"])
+    result = runner.invoke(generate, ["--budget", "8", "--out", "tests/generated"], input="y\n")
 
     assert result.exit_code == 0, result.output
     assert "Replaced previous generated drafts in this folder." in result.output
@@ -379,15 +390,12 @@ def test_generate_keep_old_preserves_existing_generated_drafts(monkeypatch, tmp_
         encoding="utf-8",
     )
 
-    monkeypatch.setattr("evalview.commands.generate_cmd.create_adapter", lambda **kwargs: _FakeAdapter())
-    monkeypatch.setattr("evalview.commands.generate_cmd._detect_agent_endpoint", lambda: "http://localhost:8000")
-    monkeypatch.setattr("evalview.commands.generate_cmd._load_config_if_exists", lambda: None)
+    _patch_generate_for_fake_adapter(monkeypatch)
 
     runner = CliRunner()
-    result = runner.invoke(generate, ["--budget", "8", "--out", "tests/generated", "--keep-old"])
+    result = runner.invoke(generate, ["--budget", "8", "--out", "tests/generated", "--keep-old"], input="y\n")
 
     assert result.exit_code == 0, result.output
-    assert "Used --keep-old" in result.output
     assert stale_path.exists()
 
 
@@ -401,12 +409,10 @@ def test_generate_preserves_handwritten_yaml_by_default(monkeypatch, tmp_path):
     handwritten = out_dir / "custom.yaml"
     handwritten.write_text("name: custom\n", encoding="utf-8")
 
-    monkeypatch.setattr("evalview.commands.generate_cmd.create_adapter", lambda **kwargs: _FakeAdapter())
-    monkeypatch.setattr("evalview.commands.generate_cmd._detect_agent_endpoint", lambda: "http://localhost:8000")
-    monkeypatch.setattr("evalview.commands.generate_cmd._load_config_if_exists", lambda: None)
+    _patch_generate_for_fake_adapter(monkeypatch)
 
     runner = CliRunner()
-    result = runner.invoke(generate, ["--budget", "8", "--out", "tests/generated"], input="\n")
+    result = runner.invoke(generate, ["--budget", "8", "--out", "tests/generated"], input="y\n\n")
 
     assert result.exit_code == 0, result.output
     assert "hand-written YAML test" in result.output
@@ -423,12 +429,10 @@ def test_generate_can_replace_handwritten_yaml_after_confirmation(monkeypatch, t
     handwritten = out_dir / "custom.yaml"
     handwritten.write_text("name: custom\n", encoding="utf-8")
 
-    monkeypatch.setattr("evalview.commands.generate_cmd.create_adapter", lambda **kwargs: _FakeAdapter())
-    monkeypatch.setattr("evalview.commands.generate_cmd._detect_agent_endpoint", lambda: "http://localhost:8000")
-    monkeypatch.setattr("evalview.commands.generate_cmd._load_config_if_exists", lambda: None)
+    _patch_generate_for_fake_adapter(monkeypatch)
 
     runner = CliRunner()
-    result = runner.invoke(generate, ["--budget", "8", "--out", "tests/generated"], input="n\n")
+    result = runner.invoke(generate, ["--budget", "8", "--out", "tests/generated"], input="y\nn\n")
 
     assert result.exit_code == 0, result.output
     assert "including hand-written tests" in result.output
@@ -440,12 +444,10 @@ def test_generate_safe_mode_filters_side_effect_tools(monkeypatch, tmp_path):
     from evalview.commands.generate_cmd import generate
 
     monkeypatch.chdir(tmp_path)
-    monkeypatch.setattr("evalview.commands.generate_cmd.create_adapter", lambda **kwargs: _FakeAdapter())
-    monkeypatch.setattr("evalview.commands.generate_cmd._detect_agent_endpoint", lambda: "http://localhost:8000")
-    monkeypatch.setattr("evalview.commands.generate_cmd._load_config_if_exists", lambda: None)
+    _patch_generate_for_fake_adapter(monkeypatch)
 
     runner = CliRunner()
-    result = runner.invoke(generate, ["--budget", "8", "--exclude-tools", "calculator"])
+    result = runner.invoke(generate, ["--budget", "8", "--exclude-tools", "calculator"], input="y\n")
 
     assert result.exit_code == 0, result.output
     report = json.loads((tmp_path / "tests" / "generated" / "generated.report.json").read_text(encoding="utf-8"))
@@ -457,9 +459,7 @@ def test_generate_from_log_reuses_generation_pipeline(monkeypatch, tmp_path):
     from evalview.commands.generate_cmd import generate
 
     monkeypatch.chdir(tmp_path)
-    monkeypatch.setattr("evalview.commands.generate_cmd.create_adapter", lambda **kwargs: _FakeAdapter())
-    monkeypatch.setattr("evalview.commands.generate_cmd._detect_agent_endpoint", lambda: "http://localhost:8000")
-    monkeypatch.setattr("evalview.commands.generate_cmd._load_config_if_exists", lambda: None)
+    _patch_generate_for_fake_adapter(monkeypatch)
 
     log_file = tmp_path / "traffic.jsonl"
     log_file.write_text(
@@ -471,7 +471,7 @@ def test_generate_from_log_reuses_generation_pipeline(monkeypatch, tmp_path):
     )
 
     runner = CliRunner()
-    result = runner.invoke(generate, ["--from-log", str(log_file), "--budget", "10"])
+    result = runner.invoke(generate, ["--from-log", str(log_file), "--budget", "10"], input="y\n")
 
     assert result.exit_code == 0, result.output
     report = json.loads((tmp_path / "tests" / "generated" / "generated.report.json").read_text(encoding="utf-8"))
@@ -495,7 +495,7 @@ def test_generate_from_log_does_not_require_agent_endpoint(monkeypatch, tmp_path
     )
 
     runner = CliRunner()
-    result = runner.invoke(generate, ["--from-log", str(log_file)])
+    result = runner.invoke(generate, ["--from-log", str(log_file)], input="y\n")
 
     assert result.exit_code == 0, result.output
     report = json.loads((tmp_path / "tests" / "generated" / "generated.report.json").read_text(encoding="utf-8"))
@@ -513,6 +513,11 @@ def test_generate_drops_non_progressing_follow_up_from_multi_turn(monkeypatch, t
         adapter=adapter,
         endpoint="http://localhost:8000",
         adapter_type="http",
+    )
+    # Prevent real LLM calls — force static fallback for clarification follow-up
+    monkeypatch.setattr(
+        "evalview.test_generation.AgentTestGenerator._select_synthesis_client",
+        staticmethod(lambda: None),
     )
     now = datetime.now()
     first_trace = ExecutionTrace(
@@ -532,8 +537,10 @@ def test_generate_drops_non_progressing_follow_up_from_multi_turn(monkeypatch, t
         rationale="Observed clarification path",
     )
 
-    follow_up = asyncio.run(generator._maybe_generate_follow_up_probe(probe))
+    follow_up = asyncio.run(generator._generate_multi_turn_probe(probe))
 
+    # The non-progressing adapter returns the same output, so the follow-up
+    # should be dropped as not meaningful.
     assert follow_up is None
 
 
@@ -542,15 +549,13 @@ def test_generate_report_tracks_changes_since_last_generation(monkeypatch, tmp_p
     from evalview.commands.generate_cmd import generate
 
     monkeypatch.chdir(tmp_path)
-    monkeypatch.setattr("evalview.commands.generate_cmd.create_adapter", lambda **kwargs: _FakeAdapter())
-    monkeypatch.setattr("evalview.commands.generate_cmd._detect_agent_endpoint", lambda: "http://localhost:8000")
-    monkeypatch.setattr("evalview.commands.generate_cmd._load_config_if_exists", lambda: None)
+    _patch_generate_for_fake_adapter(monkeypatch)
 
     runner = CliRunner()
-    first = runner.invoke(generate, ["--budget", "6"])
+    first = runner.invoke(generate, ["--budget", "6"], input="y\n")
     assert first.exit_code == 0, first.output
 
-    second = runner.invoke(generate, ["--budget", "8"])
+    second = runner.invoke(generate, ["--budget", "8"], input="y\n")
     assert second.exit_code == 0, second.output
 
     report = json.loads((tmp_path / "tests" / "generated" / "generated.report.json").read_text(encoding="utf-8"))

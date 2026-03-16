@@ -188,24 +188,22 @@ thresholds:
     return generated
 
 
-def _generate_init_draft_suite(endpoint: str, out_dir: Path) -> tuple[int, dict[str, Any]]:
+def _generate_init_draft_suite(endpoint: str, out_dir: Path) -> tuple[int, dict[str, Any], list]:
     """Generate an isolated draft suite for onboarding.
 
     Uses the same generation engine as `evalview generate`, but writes into a
     dedicated folder so first-run onboarding does not mix with stale tests.
+    Timeout is 120s to accommodate LLM-backed agents (e.g. Claude Sonnet).
+
+    Returns (count, report, tests) — tests are NOT written to disk yet so the
+    caller can show them for review and ask for approval first.
     """
     adapter = create_adapter(
         adapter_type="http",
         endpoint=endpoint,
-        timeout=30.0,
+        timeout=120.0,
         allow_private_urls=True,
     )
-    AgentTestGenerator(
-        adapter=adapter,
-        endpoint=endpoint,
-        adapter_type="http",
-        allow_live_side_effects=False,
-    )._clear_generated_suite(out_dir)
     result = run_generation(
         adapter=adapter,
         endpoint=endpoint,
@@ -214,7 +212,7 @@ def _generate_init_draft_suite(endpoint: str, out_dir: Path) -> tuple[int, dict[
         allow_live_side_effects=False,
     )
     if not result.tests:
-        return 0, result.report
+        return 0, result.report, []
 
     approved_at = datetime.now(timezone.utc).isoformat()
     for test_case in result.tests:
@@ -226,14 +224,21 @@ def _generate_init_draft_suite(endpoint: str, out_dir: Path) -> tuple[int, dict[
         test_case.thresholds.min_score = min(test_case.thresholds.min_score, 50.0)
         test_case.thresholds.max_latency = None
 
+    return len(result.tests), result.report, result.tests
+
+
+def _write_init_suite(tests: list, out_dir: Path, endpoint: str) -> None:
+    """Write approved init tests to disk."""
+    from evalview.test_generation import GenerationResult
+
+    result = GenerationResult(tests=tests)
     generator = AgentTestGenerator(
-        adapter=adapter,
+        adapter=None,
         endpoint=endpoint,
         adapter_type="http",
         allow_live_side_effects=False,
     )
     generator.write_suite(result, out_dir, replace_existing=True)
-    return len(result.tests), result.report
 
 
 def _print_generated_test_preview(tests_dir: Path, max_files: int = 1) -> None:
@@ -783,53 +788,43 @@ model:
         )
     elif path_choice == 2:
         console.print("\n[cyan]Generating a draft suite from your agent...[/cyan]")
-        console.print(f"[dim]  Writing onboarding drafts to {init_generated_dir}/[/dim]")
-        AgentTestGenerator(
-            adapter=None,
-            endpoint=endpoint,
-            adapter_type="http",
-            allow_live_side_effects=False,
-        )._clear_generated_suite(init_generated_dir)
-        n, report = _generate_init_draft_suite(endpoint, init_generated_dir)
+        console.print(f"[dim]  Probing {endpoint} (this may take a minute for LLM-backed agents)...[/dim]")
+        n, report, tests = _generate_init_draft_suite(endpoint, init_generated_dir)
         if n > 0:
-            state_store.set_active_test_path("tests/generated-from-init")
             covered = report.get("covered", {})
-            distinct_paths = sum(
-                int(covered.get(key, 0) or 0)
-                for key in (
-                    "tool_paths",
-                    "direct_answers",
-                    "clarifications",
-                    "multi_turn",
-                    "refusals",
-                    "error_paths",
-                )
+
+            # Show all tests inline for review
+            from evalview.commands.generate_cmd import _print_test_summary_table, _print_test_yaml_inline
+            _print_test_summary_table(tests)
+            _print_test_yaml_inline(tests, AgentTestGenerator(
+                adapter=None, endpoint=endpoint, adapter_type="http",
+                allow_live_side_effects=False,
+            ))
+
+            # Ask for approval before writing
+            approved = click.confirm(
+                f"Save these {n} tests to {init_generated_dir}?",
+                default=True,
             )
-            console.print(f"[green]✅ Generated {n} draft test case(s) in tests/generated-from-init/[/green]")
-            console.print(
-                "[dim]   This folder is isolated from your existing tests so snapshot only targets these drafts.[/dim]"
-            )
-            console.print(
-                f"[dim]   Coverage: tool paths={covered.get('tool_paths', 0)}, "
-                f"direct answers={covered.get('direct_answers', 0)}, "
-                f"clarifications={covered.get('clarifications', 0)}, "
-                f"multi-turn={covered.get('multi_turn', 0)}[/dim]"
-            )
-            if n == 1:
+            if not approved:
+                console.print("[dim]Discarded. Run evalview generate to try again with different options.[/dim]")
+                _write_blank_template(init_generated_dir, endpoint)
+                state_store.set_active_test_path("tests/generated-from-init")
+            else:
+                _write_init_suite(tests, init_generated_dir, endpoint)
+                state_store.set_active_test_path("tests/generated-from-init")
+                console.print(f"[green]✅ Saved {n} tests to {init_generated_dir}/[/green]")
                 console.print(
-                    f"[dim]   Only {distinct_paths or 1} distinct behavior path was discovered "
-                    "during the lighter init flow, so EvalView kept one representative draft test.[/dim]"
+                    f"[dim]   Coverage: tool paths={covered.get('tool_paths', 0)}, "
+                    f"direct answers={covered.get('direct_answers', 0)}, "
+                    f"clarifications={covered.get('clarifications', 0)}, "
+                    f"multi-turn={covered.get('multi_turn', 0)}[/dim]"
                 )
-                console.print(
-                    "[dim]   Use evalview generate --budget 20 for broader coverage.[/dim]"
-                )
-            _print_generated_test_preview(init_generated_dir, max_files=1)
         else:
             console.print("[yellow]⚠️  Could not reach agent to generate draft tests.[/yellow]")
             console.print("[dim]   Creating a blank template in tests/generated-from-init/ instead.[/dim]")
             _write_blank_template(init_generated_dir, endpoint)
             state_store.set_active_test_path("tests/generated-from-init")
-            _print_generated_test_preview(init_generated_dir, max_files=1)
     else:
         _write_blank_template(init_generated_dir, endpoint)
         state_store.set_active_test_path("tests/generated-from-init")

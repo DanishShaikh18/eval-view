@@ -3,12 +3,13 @@ from __future__ import annotations
 
 import asyncio
 import json
+import logging
 import re
 import shutil
 from collections import Counter, deque
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any, Deque, Dict, List, Optional, Sequence, Set
+from typing import Any, Callable, Deque, Dict, List, Optional, Sequence, Set
 from urllib.parse import urlsplit, urlunsplit
 
 import yaml  # type: ignore[import-untyped]
@@ -18,7 +19,17 @@ from evalview.adapters.base import AgentAdapter
 from evalview.core.types import ConversationTurn, ExpectedBehavior, ExpectedOutput, TestCase, TestInput, Thresholds
 from evalview.importers.log_importer import LogEntry
 
+logger = logging.getLogger(__name__)
+
 _CAPABILITY_PROMPT = "Hello, what can you help me with?"
+
+# Discovery probes — ask the agent about itself BEFORE generating tests.
+# A PM would research the product first: understand capabilities, get real
+# examples, learn what data it works with.  These are the richest cold-start
+# signals for deriving domain semantics.
+_DISCOVERY_EXAMPLE_PROMPT = "Show me a few example requests or tasks you handle well."
+_DISCOVERY_DOMAIN_PROMPT = "What types of data or information do you work with?"
+_DISCOVERY_PROMPTS = [_CAPABILITY_PROMPT, _DISCOVERY_EXAMPLE_PROMPT, _DISCOVERY_DOMAIN_PROMPT]
 _FRAGMENT_ENDINGS = (
     " for", " the", " a", " an", " of", " in", " on", " to", " with", " and", " or", " e.g.", "(e.g.",
 )
@@ -127,6 +138,47 @@ _PROMPT_LIKE_LINE = re.compile(r"^[A-Z0-9][^|`]{8,160}$")
 _BACKTICK_PROMPT = re.compile(r"`([^`\n]{8,180})`")
 _QUOTED_PROMPT = re.compile(r'["\u201c\u201d]([^"\u201c\u201d]{8,180})["\u201c\u201d]')
 
+# ---------------------------------------------------------------------------
+# LLM-powered prompt synthesis
+# ---------------------------------------------------------------------------
+_SYNTHESIS_SYSTEM_PROMPT = """\
+You generate test prompts for an AI agent. Your job is to understand exactly \
+what this agent does from ALL the context provided, then create prompts that \
+real users of THIS SPECIFIC agent would type.
+
+CRITICAL: Derive the agent's domain from the full context — capabilities, \
+tool descriptions, project docs, and example queries. Do NOT guess from \
+keywords alone. "pain tracker" might mean product-friction tracking, medical \
+symptoms, or manufacturing defects. "booking" might mean hotel rooms, \
+meeting rooms, or accounting entries. Read everything carefully before \
+generating a single prompt.
+
+Steps:
+1. Read all context to determine the exact domain, product, and user persona
+2. Generate prompts as those real users would phrase them — their vocabulary, \
+their actual workflows, their real-world concerns
+
+Rules:
+- Use vocabulary and concerns specific to THIS domain, not generic synonyms
+- Use concrete values appropriate to the domain: real-sounding names, dates, \
+quantities, statuses — not placeholders like <name> or {date}
+- Never mention tool names, API endpoints, or system internals
+- Users describe what they NEED, not how the system should do it
+- Vary length and style: terse one-liners, detailed requests, questions, \
+casual commands
+- Each prompt must test a meaningfully different scenario
+
+Respond with JSON only: {"prompts": [{"text": "...", "category": \
+"happy_path|edge_case|multi_step|ambiguous"}]}\
+"""
+
+_SYNTHESIS_PROVIDER_PRIORITY = [
+    ("deepseek", "deepseek-chat"),
+    ("gemini", "gemini-2.0-flash"),
+    ("openai", "gpt-4o-mini"),
+    ("anthropic", "claude-haiku-4-5-20251001"),
+]
+
 
 @dataclass
 class ProbeResult:
@@ -187,14 +239,17 @@ class AgentTestGenerator:
         self.discovered_tools: List[Dict[str, Any]] = []
         self.project_root = project_root or Path.cwd()
         self.prompt_sources: Dict[str, str] = {}
+        self._synthesis_succeeded: bool = False
 
     async def generate(
         self,
         budget: int = 20,
         seed_prompts: Optional[Sequence[str]] = None,
+        synthesize: bool = True,
+        on_probe_complete: Optional[Callable[[int, int, str, str, List[str]], None]] = None,
     ) -> GenerationResult:
         self.discovered_tools = await discover_tool_schemas(self.adapter, self.adapter_type, self.endpoint)
-        queue = self._build_probe_queue(seed_prompts or [])
+        queue = self._build_probe_queue(seed_prompts or [], budget=budget)
         self.prompt_sources = {prompt: source for prompt, source in queue}
         queue_text: Deque[str] = deque(prompt for prompt, _ in queue)
         seen_queries = set()
@@ -203,6 +258,12 @@ class AgentTestGenerator:
         tools_seen: Counter[str] = Counter()
         failures: List[str] = []
         probes_run = 0
+        synthesis_done = False
+        synthesis_count = 0
+        discovery_responses: List[str] = []
+        # Wait for N discovery probes before synthesizing.  More responses =
+        # better domain understanding.  Scale down for tiny budgets.
+        discovery_target = min(len(_DISCOVERY_PROMPTS), max(1, budget // 4))
 
         while queue_text and probes_run < budget:
             query = queue_text.popleft().strip()
@@ -217,24 +278,70 @@ class AgentTestGenerator:
             except Exception as exc:
                 failures.append(f"{query[:80]}: {exc}")
                 probes_run += 1
+                if on_probe_complete:
+                    on_probe_complete(probes_run, budget, query[:60], "fail", [])
                 continue
 
             probe = self._build_probe_result(query, trace, self.prompt_sources.get(query, "live_probe"))
             probes_run += 1
             signatures_seen[probe.signature] += 1
             tools_seen.update(probe.tools)
+            if on_probe_complete:
+                on_probe_complete(probes_run, budget, query[:60], "ok", probe.tools)
 
             if probe.signature not in clustered:
                 clustered[probe.signature] = probe
 
-            if probe.behavior_class == "clarification" and probes_run < budget:
-                follow_up_probe = await self._maybe_generate_follow_up_probe(probe)
+            # Collect discovery responses — the agent's own words about
+            # its capabilities and examples are the richest signal for
+            # understanding domain semantics at cold start.
+            if self.prompt_sources.get(query) == "discovery":
+                discovery_responses.append(probe.trace.final_output or "")
+
+            # Synthesize after the discovery phase completes: we now have
+            # capability overview + example requests + domain info + tool
+            # schemas — enough for the LLM to derive the exact domain and
+            # generate prompts real users would actually type.
+            if not synthesis_done and synthesize and probes_run >= discovery_target:
+                synthesis_done = True
+                synthesized = await self._synthesize_prompts(
+                    discovery_responses=discovery_responses,
+                    budget=budget,
+                )
+                for s_prompt in reversed(synthesized):
+                    if s_prompt.text not in seen_queries:
+                        self.prompt_sources.setdefault(s_prompt.text, s_prompt.source)
+                        queue_text.appendleft(s_prompt.text)
+                        synthesis_count += 1
+                if synthesis_count > 0:
+                    self._synthesis_succeeded = True
+
+            # Multi-turn: generate a natural follow-up for tool-path and
+            # clarification probes.  This does NOT count against the budget —
+            # it enriches an existing probe into a two-turn conversation.
+            if probe.behavior_class in {"tool_path", "clarification"}:
+                if on_probe_complete:
+                    on_probe_complete(probes_run, budget, "generating follow-up...", "info", [])
+                follow_up_probe = await self._generate_multi_turn_probe(probe)
                 if follow_up_probe is not None:
                     signatures_seen[follow_up_probe.signature] += 1
                     tools_seen.update(follow_up_probe.tools)
                     if follow_up_probe.signature not in clustered:
                         clustered[follow_up_probe.signature] = follow_up_probe
-                    probes_run += 1
+                        if on_probe_complete:
+                            on_probe_complete(
+                                probes_run, budget,
+                                f"multi-turn: {follow_up_probe.query[:50]}",
+                                "ok", follow_up_probe.tools,
+                            )
+                    logger.debug(
+                        "Multi-turn follow-up created: %s → %s",
+                        probe.query[:40], follow_up_probe.query[:40],
+                    )
+                else:
+                    logger.debug("Multi-turn follow-up skipped for: %s", probe.query[:40])
+                    if on_probe_complete:
+                        on_probe_complete(probes_run, budget, "follow-up skipped (not meaningful)", "info", [])
 
             prioritized_candidates = list(self._expand_probe_candidates(probe))
             for candidate in reversed(prioritized_candidates):
@@ -243,6 +350,11 @@ class AgentTestGenerator:
                     queue_text.appendleft(candidate)
 
         tests = [self._build_test_case(probe, clustered) for probe in clustered.values()]
+
+        # Refine test names and output assertions via cheap LLM call.
+        if synthesize:
+            await self._refine_tests_with_llm(tests, list(clustered.values()))
+
         report = self._build_report(
             clustered=list(clustered.values()),
             probes_run=probes_run,
@@ -250,6 +362,7 @@ class AgentTestGenerator:
             tools_seen=tools_seen,
             failures=failures,
         )
+        report["prompt_synthesis"] = {"count": synthesis_count}
         return GenerationResult(
             tests=tests,
             probes_run=probes_run,
@@ -387,7 +500,7 @@ class AgentTestGenerator:
             report=report,
         )
 
-    def _build_probe_queue(self, seed_prompts: Sequence[str]) -> Deque[tuple[str, str]]:
+    def _build_probe_queue(self, seed_prompts: Sequence[str], budget: int = 20) -> Deque[tuple[str, str]]:
         queue: Deque[tuple[str, str]] = deque()
         seen: Set[str] = set()
 
@@ -403,7 +516,11 @@ class AgentTestGenerator:
                 seen.add(normalized)
                 queue.append((normalized, source))
 
-        enqueue(_CAPABILITY_PROMPT, "capability")
+        # Scale discovery probes to budget: always ask capability, add
+        # example/domain probes only when budget allows.
+        max_discovery = min(len(_DISCOVERY_PROMPTS), max(1, budget // 4))
+        for prompt in _DISCOVERY_PROMPTS[:max_discovery]:
+            enqueue(prompt, "discovery")
 
         for candidate in prioritized_prompts:
             enqueue(candidate.text, candidate.source)
@@ -465,13 +582,17 @@ class AgentTestGenerator:
         output = probe.trace.final_output or ""
         candidates.extend(self._extract_example_queries(output))
 
-        for tool_name in probe.tools:
-            if not self._tool_is_allowed(tool_name):
-                continue
-            normalized = tool_name.lower().replace("_", " ").replace("-", " ")
-            for keyword, prompts in _TOOL_PROMPT_LIBRARY.items():
-                if keyword in normalized:
-                    candidates.extend(prompts)
+        # Only inject generic library prompts when LLM synthesis didn't
+        # produce domain-specific alternatives — otherwise the library
+        # floods the queue with off-domain noise ("weather in SF", etc.).
+        if not self._synthesis_succeeded:
+            for tool_name in probe.tools:
+                if not self._tool_is_allowed(tool_name):
+                    continue
+                normalized = tool_name.lower().replace("_", " ").replace("-", " ")
+                for keyword, prompts in _TOOL_PROMPT_LIBRARY.items():
+                    if keyword in normalized:
+                        candidates.extend(prompts)
 
         if probe.behavior_class == "clarification":
             candidates.append("Use the most sensible default and continue.")
@@ -480,20 +601,44 @@ class AgentTestGenerator:
 
         return [candidate for candidate in candidates if self._prompt_is_allowed(candidate)]
 
-    async def _maybe_generate_follow_up_probe(self, probe: ProbeResult) -> Optional[ProbeResult]:
-        """Turn a clarification into a concrete two-turn draft behavior."""
+    async def _generate_multi_turn_probe(self, probe: ProbeResult) -> Optional[ProbeResult]:
+        """Generate a natural follow-up question from the agent's response.
+
+        Instead of a static "use the most sensible default" prompt, we ask an
+        LLM to write a realistic follow-up that a real user would type after
+        seeing the agent's answer.  This produces reliable, reproducible
+        multi-turn conversations grounded in actual agent behavior.
+
+        Falls back to the static follow-up if no LLM is available.
+        """
+        if self.adapter is None:
+            return None
+
+        output = (probe.trace.final_output or "").strip()
+        if not output or len(output) < 20:
+            return None
+
+        # Generate a natural follow-up via LLM
+        follow_up_query = await self._synthesize_follow_up_query(probe.query, output)
+        if not follow_up_query:
+            # Fallback: static follow-up for clarifications only
+            if probe.behavior_class == "clarification":
+                follow_up_query = _SAFE_FOLLOW_UP
+            else:
+                return None
+
         history = [
             {"role": "user", "content": probe.query},
-            {"role": "assistant", "content": probe.trace.final_output},
+            {"role": "assistant", "content": output},
         ]
         try:
-            if self.adapter is None:
-                return None
-            trace = await self.adapter.execute(_SAFE_FOLLOW_UP, {"conversation_history": history})
+            trace = await self.adapter.execute(
+                follow_up_query, {"conversation_history": history}
+            )
         except Exception:
             return None
 
-        follow_up = self._build_probe_result(probe.query, trace, "follow_up")
+        follow_up = self._build_probe_result(probe.query, trace, "multi_turn")
         if any(not self._tool_is_allowed(tool) for tool in follow_up.tools):
             return None
         if not self._is_meaningful_follow_up(probe, follow_up):
@@ -501,10 +646,44 @@ class AgentTestGenerator:
         follow_up.behavior_class = "multi_turn"
         follow_up.signature = self._build_signature("multi_turn", follow_up.tools)
         follow_up.rationale = (
-            "Observed clarification followed by completion path"
-            + (f": {' -> '.join(follow_up.tools)}" if follow_up.tools else "")
+            f"Turn 1: {probe.query[:60]} → Turn 2: {follow_up_query[:60]}"
         )
         follow_up.conversation_history = history
+        # Store the actual follow-up query so the test case uses it
+        follow_up.query = follow_up_query
+        return follow_up
+
+    async def _synthesize_follow_up_query(
+        self, original_query: str, agent_response: str
+    ) -> Optional[str]:
+        """Use LLM to generate a natural follow-up question from an agent response."""
+        client = self._select_synthesis_client()
+        if client is None:
+            return None
+
+        try:
+            result = await client.chat_completion(
+                system_prompt=(
+                    "You write a single realistic follow-up question a user would "
+                    "ask after seeing an AI agent's response. Write ONLY the follow-up "
+                    "question, nothing else. Keep it short and natural — like a real "
+                    "person continuing a conversation. "
+                    'Return JSON: {"follow_up": "your question here"}'
+                ),
+                user_prompt=(
+                    f"User asked: {original_query[:200]}\n\n"
+                    f"Agent responded: {agent_response[:500]}\n\n"
+                    "What would the user naturally ask next?"
+                ),
+                temperature=0.7,
+                max_tokens=150,
+            )
+        except Exception:
+            return None
+
+        follow_up = (result.get("follow_up") or "").strip()
+        if not follow_up or len(follow_up) < 5 or len(follow_up) > 200:
+            return None
         return follow_up
 
     def _classify_behavior(self, trace: Any, tools: Sequence[str]) -> str:
@@ -650,9 +829,13 @@ class AgentTestGenerator:
             generated=True,
         )
         if probe.behavior_class == "multi_turn" and probe.conversation_history:
+            # Turn 1: the original user query (from conversation history)
+            # Turn 2: the LLM-generated follow-up (now in probe.query)
+            original_query = probe.conversation_history[0].get("content", probe.query)
+            test_case.input = TestInput(query=original_query)
             test_case.turns = [
+                ConversationTurn(query=original_query),
                 ConversationTurn(query=probe.query),
-                ConversationTurn(query=_SAFE_FOLLOW_UP),
             ]
         return test_case
 
@@ -804,9 +987,10 @@ class AgentTestGenerator:
         project_prompt_context: str,
     ) -> Optional[str]:
         normalized = _normalize_name(tool_name)
-        for keyword, prompts in _TOOL_PROMPT_LIBRARY.items():
-            if keyword in normalized:
-                return prompts[0]
+        if not self._synthesis_succeeded:
+            for keyword, prompts in _TOOL_PROMPT_LIBRARY.items():
+                if keyword in normalized:
+                    return prompts[0]
 
         domain_match = self._find_domain_prompt_for_tool(
             tool_name,
@@ -816,10 +1000,42 @@ class AgentTestGenerator:
         if domain_match:
             return domain_match
 
-        property_names = list((input_schema.get("properties") or {}).keys())[:3]
-        property_hint = ", ".join(property_names) if property_names else "the required parameters"
-        summary = description or f"use the {tool_name} tool"
-        return f"Use {tool_name} to help with a realistic task. Include {property_hint}. {summary}".strip()
+        # Generate a natural-sounding prompt from the description
+        if description:
+            desc_clean = description.strip().rstrip(".")
+            desc_lower = desc_clean.lower()
+
+            # Verbs where we replace the action word: "get entries" → "Show me entries"
+            _verb_replacements = {
+                "get": "Show me", "fetch": "Show me", "retrieve": "Show me",
+                "list": "Show me", "show": "Show me", "find": "Find",
+                "search": "Search for", "query": "Look up",
+            }
+            for verb, replacement in _verb_replacements.items():
+                if desc_lower.startswith(verb):
+                    rest = desc_lower.split(" ", 1)[-1] if " " in desc_lower else desc_lower
+                    return f"{replacement} {rest}"
+
+            # Verbs where we prepend a prefix: "log pain" → "I need to log pain"
+            _verb_prefixes = {
+                "create": "I need to", "add": "I need to", "log": "I need to",
+                "record": "I need to", "save": "I need to", "insert": "I need to",
+                "update": "Can you", "modify": "Can you", "change": "Can you",
+                "analyze": "Please", "calculate": "Please", "compute": "Please",
+                "summarize": "Please",
+            }
+            for verb, prefix in _verb_prefixes.items():
+                if desc_lower.startswith(verb):
+                    return f"{prefix} {desc_lower}"
+
+            # Passthrough verbs: use the description as-is
+            if any(desc_lower.startswith(v) for v in ("check", "verify", "validate")):
+                return desc_clean
+
+            return f"I need help with this: {desc_lower}"
+
+        human_name = tool_name.replace("_", " ").replace("-", " ")
+        return f"Help me with {human_name}"
 
     def _find_domain_prompt_for_tool(
         self,
@@ -847,6 +1063,271 @@ class AgentTestGenerator:
             if example_queries:
                 return example_queries[0]
         return None
+
+    # -- LLM-powered prompt synthesis ------------------------------------------
+
+    @staticmethod
+    def _select_synthesis_client() -> Optional[Any]:
+        """Pick the cheapest available LLM for prompt synthesis."""
+        try:
+            from evalview.core.llm_provider import LLMClient, detect_available_providers
+            from evalview.core.llm_configs import LLMProvider as LLMProviderEnum
+        except ImportError:
+            return None
+
+        available = detect_available_providers()
+        if not available:
+            return None
+
+        available_map = {p.provider.value: p.api_key for p in available}
+
+        for provider_name, model in _SYNTHESIS_PROVIDER_PRIORITY:
+            if provider_name in available_map:
+                try:
+                    return LLMClient(
+                        provider=LLMProviderEnum(provider_name),
+                        api_key=available_map[provider_name],
+                        model=model,
+                    )
+                except Exception:
+                    continue
+
+        # Fallback: first available provider with its default model
+        provider, api_key = available[0]
+        try:
+            return LLMClient(provider=provider, api_key=api_key)
+        except Exception:
+            return None
+
+    async def _synthesize_prompts(
+        self,
+        discovery_responses: List[str],
+        budget: int,
+    ) -> List[PromptCandidate]:
+        """Use LLM to synthesize realistic user prompts from agent context.
+
+        Sends a single LLM call with all discovery probe responses (capability
+        overview, example requests, domain info), tool schemas, and project
+        docs.  The LLM derives the exact domain from this combined context
+        before generating prompts — critical for cold start where no existing
+        tests or user queries exist.
+
+        Returns an empty list if no LLM provider is available or synthesis
+        fails — the generator falls back to heuristic prompts automatically.
+        """
+        client = self._select_synthesis_client()
+        if client is None:
+            return []
+
+        n_prompts = min(max(budget - 1, 3), 15)
+        user_prompt = self._build_synthesis_user_prompt(discovery_responses, n_prompts)
+
+        try:
+            result = await client.chat_completion(
+                system_prompt=_SYNTHESIS_SYSTEM_PROMPT,
+                user_prompt=user_prompt,
+                temperature=0.8,
+                max_tokens=2000,
+            )
+        except Exception as exc:
+            logger.debug("Prompt synthesis LLM call failed: %s", exc)
+            return []
+
+        prompts_data = result.get("prompts", [])
+        if not isinstance(prompts_data, list):
+            return []
+
+        candidates: List[PromptCandidate] = []
+        for item in prompts_data:
+            if not isinstance(item, dict):
+                continue
+            text = (item.get("text") or "").strip()
+            if not text or len(text) < 8 or len(text) > 300:
+                continue
+            if not self._prompt_is_allowed(text):
+                continue
+            category = item.get("category", "happy_path")
+            candidates.append(PromptCandidate(text, f"llm_synthesized:{category}"))
+
+        return candidates
+
+    def _build_synthesis_user_prompt(self, discovery_responses: List[str], n_prompts: int) -> str:
+        """Build the user-side prompt for the synthesis LLM call.
+
+        Assembles all available cold-start context so the LLM can derive
+        the exact domain before generating prompts:
+
+        1. Discovery responses — the agent's own answers to "what can you
+           do?", "give me example requests", "what data do you work with?"
+        2. Tool schemas — names, descriptions, parameters
+        3. Project docs — README, CONTEXT.md, AGENTS.md (if present)
+        4. Existing queries — from hand-written tests or captured traffic
+
+        At true cold start, only (1) and (2) are available, which is why
+        multi-probe discovery is so important.
+        """
+        tools_text = self._format_tools_for_synthesis()
+        project_context = self._collect_project_context_text()
+
+        parts: List[str] = [f"Generate {n_prompts} realistic user prompts for this agent.\n"]
+
+        # Discovery responses — the primary cold-start signal.
+        # Format as Q&A pairs so the LLM can see what questions were asked
+        # and trace domain meaning from the agent's own words.
+        if discovery_responses:
+            qa_pairs: List[str] = []
+            for i, response in enumerate(discovery_responses):
+                text = (response or "").strip()
+                if not text:
+                    continue
+                question = _DISCOVERY_PROMPTS[i] if i < len(_DISCOVERY_PROMPTS) else "Follow-up"
+                qa_pairs.append(f"Q: {question}\nA: {text[:1500]}")
+            if qa_pairs:
+                parts.append(
+                    "AGENT RESPONSES (read ALL of these to understand the exact domain):\n"
+                    + "\n\n".join(qa_pairs)
+                    + "\n"
+                )
+
+        if tools_text:
+            parts.append(
+                f"TOOLS AVAILABLE (do NOT mention these names in prompts):\n{tools_text}\n"
+            )
+
+        if project_context:
+            parts.append(f"PROJECT CONTEXT:\n{project_context}\n")
+
+        # Existing queries from hand-written tests / captured traffic.
+        workspace_seeds = self._workspace_seed_prompts()
+        if workspace_seeds:
+            seed_lines = "\n".join(f"- {s.text}" for s in workspace_seeds[:10])
+            parts.append(
+                f"REAL USER QUERIES (match this style and domain vocabulary):\n{seed_lines}\n"
+            )
+
+        happy = max(1, n_prompts - 4)
+        parts.append(f"Generate exactly {n_prompts} prompts covering:")
+        parts.append(
+            f"- {happy} core tasks real users of THIS product perform daily (category: happy_path)"
+        )
+        parts.append(
+            "- 1 first-time user request — what someone new to the product would try (category: onboarding)"
+        )
+        parts.append(
+            "- 1 edge case with unusual input or boundary condition (category: edge_case)"
+        )
+        parts.append(
+            "- 1 multi-step request combining multiple capabilities (category: multi_step)"
+        )
+        parts.append(
+            "- 1 ambiguous or vague request (category: ambiguous)"
+        )
+
+        return "\n".join(parts)
+
+    def _format_tools_for_synthesis(self) -> str:
+        """Format discovered tool schemas as concise context for the synthesis LLM."""
+        if not self.discovered_tools:
+            return ""
+        lines: List[str] = []
+        for tool in self.discovered_tools[:10]:
+            name = tool.get("name", "")
+            desc = (tool.get("description") or "").strip()
+            params = list((tool.get("inputSchema") or {}).get("properties", {}).keys())
+            param_text = f" (params: {', '.join(params[:5])})" if params else ""
+            lines.append(f"- {name}: {desc}{param_text}")
+        return "\n".join(lines)
+
+    def _collect_project_context_text(self) -> str:
+        """Gather text from project documentation files for synthesis context."""
+        parts: List[str] = []
+        for relative_name in _PROJECT_CONTEXT_FILES:
+            path = self.project_root / relative_name
+            if not path.exists() or not path.is_file():
+                continue
+            try:
+                text = path.read_text(encoding="utf-8")[:2000]
+                parts.append(f"--- {relative_name} ---\n{text}")
+            except Exception:
+                continue
+        return "\n\n".join(parts)[:3000]
+
+    async def _refine_tests_with_llm(
+        self,
+        tests: List[Any],
+        probes: Sequence[ProbeResult],
+    ) -> None:
+        """Batch-refine test names and output assertions via a single cheap LLM call.
+
+        For each test, the LLM sees the query, tools used, behavior class, and a
+        preview of the agent's response, then returns a concise name and 2-3 stable
+        phrases that should appear in any correct response (avoiding volatile content
+        like numbers, timestamps, or session-specific values).
+
+        Modifies tests in place. Fails silently if no LLM provider is available.
+        """
+        client = self._select_synthesis_client()
+        if client is None or not probes:
+            return
+
+        items: List[Dict[str, Any]] = []
+        for probe in probes:
+            output_preview = (probe.trace.final_output or "")[:400]
+            items.append({
+                "query": probe.query[:200],
+                "tools_used": probe.tools[:5],
+                "behavior": probe.behavior_class,
+                "output_preview": output_preview,
+            })
+
+        system = (
+            "You refine test suites for AI agent regression testing. "
+            "For each test case, generate a clear name and stable output assertions."
+        )
+        user = (
+            f"For each test case, return:\n"
+            f"1. name: A concise, descriptive name (3-8 words, no tool names)\n"
+            f"2. contains: 2-3 short phrases (each under 30 chars) that should "
+            f"appear verbatim in any correct response. Pick stable domain terms, "
+            f"NOT numbers, dates, timestamps, IDs, or counts that change between "
+            f"runs.\n\n"
+            f"Test cases:\n{json.dumps(items, indent=2)}\n\n"
+            f'Return JSON: {{"tests": [{{"name": "...", "contains": ["...", "..."]}}]}}'
+        )
+
+        try:
+            result = await client.chat_completion(
+                system_prompt=system,
+                user_prompt=user,
+                temperature=0.3,
+                max_tokens=1500,
+            )
+        except Exception as exc:
+            logger.debug("Test refinement LLM call failed: %s", exc)
+            return
+
+        refined = result.get("tests", [])
+        if not isinstance(refined, list):
+            return
+
+        for i, test in enumerate(tests):
+            if i >= len(refined):
+                break
+            r = refined[i]
+            if not isinstance(r, dict):
+                continue
+            # Update name if the LLM produced a reasonable one.
+            # Sanitize to alphanumeric + spaces + hyphens (Pydantic constraint).
+            name = (r.get("name") or "").strip()
+            name = re.sub(r"[^a-zA-Z0-9 \-]", "", name).strip()
+            if name and 5 < len(name) < 60:
+                test.name = name
+            # Update contains assertions if the LLM produced stable phrases
+            contains = r.get("contains", [])
+            if isinstance(contains, list) and contains:
+                stable = [p for p in contains if isinstance(p, str) and 3 < len(p) < 40]
+                if stable and test.expected.output:
+                    test.expected.output.contains = stable[:3]
 
     def _workspace_seed_prompts(self) -> List[PromptCandidate]:
         prompts: List[PromptCandidate] = []
@@ -1028,10 +1509,11 @@ class AgentTestGenerator:
         # output contains obviously stable anchors. This reduces brittle wording checks.
         conservative_mode = has_tools or behavior_class in {"multi_turn", "clarification"}
 
-        numbers = re.findall(r"\b\d+\.?\d*\b", text)
-        phrases.extend(numbers[:1])
+        # DO NOT extract standalone numbers — they are volatile across runs
+        # (counts, versions, prices, timestamps all change). Only extract
+        # domain-relevant text anchors.
 
-        quoted = re.findall(r'"([^"]+)"', text)
+        quoted = re.findall(r'"([^"]{4,40})"', text)
         phrases.extend(quoted[:1])
 
         if not conservative_mode:
@@ -1044,48 +1526,57 @@ class AgentTestGenerator:
             key = phrase.lower()
             if key in seen or len(phrase) < 3:
                 continue
+            # Skip anything that looks like a number, version, or date
+            if re.match(r"^[\d.,$%/:-]+$", phrase):
+                continue
             seen.add(key)
             unique.append(phrase)
         return unique[:max_phrases]
 
     def _generate_thresholds(self, trace: Any) -> Thresholds:
-        max_cost = None
-        if trace.metrics.total_cost and trace.metrics.total_cost > 0:
-            max_cost = round(trace.metrics.total_cost * 1.25, 4)
-        # Generated drafts should not hard-fail on tiny latency swings by default.
-        # Latency still shows up in reports from the trace itself.
-        return Thresholds(min_score=65.0, max_cost=max_cost, max_latency=None)
+        # Generated drafts should not hard-fail on cost or latency swings.
+        # LLM-backed agents have high variance in both — a 2x cost spike is
+        # normal when the agent takes a different tool path.  Cost and latency
+        # still appear as metrics in the report for visibility.
+        # Score 70 = "acceptable quality" — the universal default.
+        return Thresholds(min_score=70.0, max_cost=None, max_latency=None)
 
     def _generate_test_name(self, query: str, tools: Sequence[str], behavior_class: str) -> str:
         normalized_query = " ".join(query.lower().split())
         if normalized_query == _CAPABILITY_PROMPT.lower():
-            base = "Capability Overview"
+            base = "Capability overview"
         elif normalized_query == _SAFE_FOLLOW_UP.lower():
-            base = "Clarification Completion" if behavior_class == "multi_turn" else "Clarification Follow Up"
+            base = "Clarification follow-up"
+        elif any(normalized_query == p.lower() for p in _DISCOVERY_PROMPTS):
+            base = "Discovery probe"
         else:
+            _name_stop = {
+                "what", "when", "where", "which", "with", "from", "about",
+                "have", "help", "could", "would", "should", "this", "that",
+                "your", "today", "please", "most", "sensible", "default",
+                "continue", "the", "for", "and", "can", "you", "show",
+                "give", "tell", "some", "few", "example", "requests",
+                "tasks", "handle", "well", "types", "data", "information",
+                "work", "need", "realistic", "task", "include", "tool",
+                "use", "like", "want", "know", "does", "will", "just",
+                "also", "very", "been", "into", "over", "more", "them",
+                "then", "there", "make", "here", "those", "these",
+            }
             words = re.findall(r"\b\w+\b", query)
-            key_words = [
-                word for word in words
-                if len(word) > 3 and word.lower() not in {
-                    "what", "when", "where", "which", "with", "from", "about", "have", "help",
-                    "could", "would", "should", "this", "that", "your", "today",
-                    "most", "sensible", "default", "continue",
-                }
-            ]
-            base = " ".join(key_words[:4]).title() if key_words else "Generated Test"
+            key_words = [w for w in words if len(w) > 2 and w.lower() not in _name_stop][:6]
+            base = " ".join(key_words).capitalize() if key_words else "Generated test"
 
-        if tools:
-            suffix = f" - {' '.join(tool.title() for tool in tools[:2])}"
-        elif behavior_class == "multi_turn":
-            suffix = " - Multi Turn"
-        elif behavior_class == "refusal":
-            suffix = " - Refusal"
-        elif behavior_class == "clarification":
-            suffix = " - Clarification"
-        else:
-            suffix = ""
-
-        return f"{base}{suffix}".strip()
+        # Add behavior context — NOT raw tool names.
+        # Names must be alphanumeric + spaces + hyphens only (Pydantic validation).
+        if behavior_class == "refusal":
+            return f"Refusal - {base}"
+        if behavior_class == "error_path":
+            return f"Error - {base}"
+        if behavior_class == "multi_turn":
+            return f"{base} - multi-turn"
+        if behavior_class == "clarification" and base not in {"Capability overview", "Discovery probe"}:
+            return f"{base} - clarification"
+        return base
 
     def _slugify(self, value: str) -> str:
         return re.sub(r"[^a-z0-9]+", "-", value.lower()).strip("-")
@@ -1111,6 +1602,8 @@ def run_generation(
     exclude_tools: Optional[Sequence[str]] = None,
     allow_live_side_effects: bool = False,
     project_root: Optional[Path] = None,
+    synthesize: bool = True,
+    on_probe_complete: Optional[Callable[[int, int, str, str, List[str]], None]] = None,
 ) -> GenerationResult:
     """Sync wrapper for CLI usage."""
     generator = AgentTestGenerator(
@@ -1122,7 +1615,12 @@ def run_generation(
         allow_live_side_effects=allow_live_side_effects,
         project_root=project_root,
     )
-    return asyncio.run(generator.generate(budget=budget, seed_prompts=seed_prompts))
+    return asyncio.run(generator.generate(
+        budget=budget,
+        seed_prompts=seed_prompts,
+        synthesize=synthesize,
+        on_probe_complete=on_probe_complete,
+    ))
 
 
 def _normalize_name(value: str) -> str:

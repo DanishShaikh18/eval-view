@@ -137,6 +137,34 @@ class HTMLReporter:
         # Preserve order while removing duplicates.
         return list(dict.fromkeys(models))
 
+    def _extract_failure_reasons(self, r: EvaluationResult) -> List[str]:
+        """Extract human-readable failure reasons from an evaluation result."""
+        reasons: List[str] = []
+        if not r.passed:
+            # Contains check failures
+            if r.evaluations.output_quality:
+                cc = r.evaluations.output_quality.contains_checks
+                if cc and cc.failed:
+                    for phrase in cc.failed[:3]:
+                        reasons.append(f"Missing required text: {phrase}")
+                ncc = r.evaluations.output_quality.not_contains_checks
+                if ncc and ncc.failed:
+                    for phrase in ncc.failed[:3]:
+                        reasons.append(f"Contains prohibited text: {phrase}")
+            # Cost / latency threshold violations
+            if not r.evaluations.cost.passed:
+                reasons.append(f"Cost exceeded threshold: ${r.trace.metrics.total_cost:.4f}")
+            if not r.evaluations.latency.passed:
+                reasons.append(f"Latency exceeded threshold: {r.trace.metrics.total_latency:.0f}ms")
+            # Tool accuracy
+            if r.evaluations.tool_accuracy.accuracy < 1.0:
+                missing = r.evaluations.tool_accuracy.missing
+                if missing:
+                    reasons.append(f"Missing tools: {', '.join(missing[:3])}")
+            if not reasons:
+                reasons.append(f"Score {r.score} below threshold")
+        return reasons
+
     def _generate_charts(self, results: List[EvaluationResult]) -> Dict[str, str]:
         """Generate Plotly charts as JSON strings."""
         if not results:
@@ -338,7 +366,7 @@ class HTMLReporter:
                 "passed": r.passed,
                 "score": r.score,
                 "input_query": r.input_query or "",
-                "actual_output": (r.actual_output or "")[:500],
+                "actual_output": (r.actual_output or "")[:2000],
                 "tool_accuracy": round(r.evaluations.tool_accuracy.accuracy * 100, 1),
                 "correct_tools": r.evaluations.tool_accuracy.correct,
                 "missing_tools": r.evaluations.tool_accuracy.missing,
@@ -363,6 +391,35 @@ class HTMLReporter:
                     if r.evaluations.forbidden_tools and not r.evaluations.forbidden_tools.passed
                     else []
                 ),
+                # Hallucination, safety, PII — shown in CLI but was missing from HTML
+                "hallucination_detected": (
+                    r.evaluations.hallucination.detected
+                    if r.evaluations.hallucination else False
+                ),
+                "hallucination_confidence": (
+                    round(r.evaluations.hallucination.confidence * 100)
+                    if r.evaluations.hallucination and r.evaluations.hallucination.detected else 0
+                ),
+                "safety_safe": (
+                    r.evaluations.safety.safe
+                    if r.evaluations.safety else True
+                ),
+                "safety_categories": (
+                    r.evaluations.safety.flagged_categories
+                    if r.evaluations.safety and not r.evaluations.safety.safe else []
+                ),
+                "pii_detected": (
+                    r.evaluations.pii.detected
+                    if r.evaluations.pii else False
+                ),
+                "pii_types": (
+                    r.evaluations.pii.types_found
+                    if r.evaluations.pii and r.evaluations.pii.detected else []
+                ),
+                # Failure reasons (from contains/not_contains checks + cost/latency)
+                "failure_reasons": self._extract_failure_reasons(r),
+                # Score threshold for context
+                "min_score": r.min_score if hasattr(r, "min_score") else 0,
                 # Trace replay: prefer rich TraceContext spans; fallback to StepTrace list
                 "spans": self._serialize_spans(r),
             })
@@ -417,7 +474,7 @@ HTML_TEMPLATE = """<!DOCTYPE html>
         .tool-list { display: flex; flex-wrap: wrap; gap: 0.5rem; }
         .tool-badge { font-size: 0.75rem; padding: 0.25rem 0.5rem; }
         .output-preview {
-            max-height: 150px;
+            max-height: 400px;
             overflow-y: auto;
             background: #f8fafc;
             padding: 0.75rem;
@@ -760,7 +817,45 @@ HTML_TEMPLATE = """<!DOCTYPE html>
                                                 <td>Steps</td>
                                                 <td>{{ result.steps }}</td>
                                             </tr>
+                                            <tr>
+                                                <td>Hallucination</td>
+                                                <td>
+                                                    {% if result.hallucination_detected %}
+                                                    <span class="badge bg-warning text-dark">Detected ({{ result.hallucination_confidence }}%)</span>
+                                                    {% else %}
+                                                    <span class="badge bg-success">None detected</span>
+                                                    {% endif %}
+                                                </td>
+                                            </tr>
+                                            <tr>
+                                                <td>Safety</td>
+                                                <td>
+                                                    {% if result.safety_safe %}
+                                                    <span class="badge bg-success">Safe</span>
+                                                    {% else %}
+                                                    <span class="badge bg-danger">Unsafe</span>
+                                                    {% if result.safety_categories %}<small class="text-muted ms-1">{{ result.safety_categories | join(', ') }}</small>{% endif %}
+                                                    {% endif %}
+                                                </td>
+                                            </tr>
+                                            {% if result.pii_detected %}
+                                            <tr>
+                                                <td>PII</td>
+                                                <td><span class="badge bg-warning text-dark">Detected: {{ result.pii_types | join(', ') }}</span></td>
+                                            </tr>
+                                            {% endif %}
                                         </table>
+
+                                        {% if result.failure_reasons %}
+                                        <div class="alert alert-danger py-2 px-3" style="font-size: 0.85rem;">
+                                            <strong>Failure reasons:</strong>
+                                            <ul class="mb-0 ps-3">
+                                            {% for reason in result.failure_reasons %}
+                                                <li>{{ reason }}</li>
+                                            {% endfor %}
+                                            </ul>
+                                        </div>
+                                        {% endif %}
 
                                         <h6>Tools</h6>
                                         <div class="tool-list mb-2">

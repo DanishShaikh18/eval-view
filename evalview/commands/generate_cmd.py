@@ -44,6 +44,44 @@ def _print_generate_failure_guidance(
         console.print("[dim]  • If your config is stale, run evalview init to refresh .evalview/config.yaml[/dim]")
 
 
+def _print_test_summary_table(tests: list) -> None:
+    """Print a compact summary table of all generated tests."""
+    from rich.table import Table
+
+    table = Table(title="Generated Tests", show_lines=False, pad_edge=False)
+    table.add_column("#", style="dim", width=3)
+    table.add_column("Query", max_width=50)
+    table.add_column("Behavior", style="cyan", width=14)
+    table.add_column("Tools", style="green", max_width=40)
+    table.add_column("Source", style="dim", width=18)
+
+    for i, test in enumerate(tests, 1):
+        query = test.input.query[:48] + ("..." if len(test.input.query) > 48 else "")
+        meta = test.meta or {}
+        behavior = str(meta.get("behavior_class", "unknown")).replace("_", " ")
+        tools = " -> ".join(test.expected.tools[:3]) if test.expected.tools else "-"
+        source = str(meta.get("prompt_source", "unknown"))
+        table.add_row(str(i), query, behavior, tools, source)
+
+    console.print()
+    console.print(table)
+
+
+def _print_test_yaml_inline(tests: list, generator: "AgentTestGenerator") -> None:
+    """Print full YAML for every generated test so users can review before approving."""
+    console.print()
+    console.print("[bold]Full Test YAML[/bold]")
+    for i, test in enumerate(tests, 1):
+        meta = test.meta or {}
+        behavior = str(meta.get("behavior_class", "unknown")).replace("_", " ")
+        tools_label = " -> ".join(test.expected.tools[:4]) if test.expected.tools else "no tools"
+        console.print(f"\n[bold cyan]--- Test {i}/{len(tests)}: {behavior} ({tools_label}) ---[/bold cyan]")
+        payload = test.model_dump(exclude_none=True)
+        yaml_text = yaml.safe_dump(payload, sort_keys=False, allow_unicode=False)
+        console.print(yaml_text.rstrip())
+    console.print()
+
+
 def _print_generated_test_preview(output_dir: Path, max_files: int = 2) -> None:
     """Print generated YAML inline so users can inspect drafts without context-switching."""
     yaml_files = sorted([path for path in output_dir.glob("*.yaml") if path.is_file()])
@@ -73,7 +111,7 @@ def _print_generated_test_preview(output_dir: Path, max_files: int = 2) -> None:
 @click.command("generate")
 @click.option("--agent", "agent_url", help="Agent endpoint URL. Defaults to config or auto-detect.")
 @click.option("--adapter", "adapter_type", default=None, help="Adapter type (default: config or http).")
-@click.option("--budget", default=20, type=click.IntRange(1, 100), help="Maximum number of probe runs.")
+@click.option("--budget", default=4, type=click.IntRange(1, 100), help="Number of probe runs (default: 4, increase with --budget 20 for broader coverage).")
 @click.option("--out", "out_dir", default="tests/generated", help="Output directory for generated tests.")
 @click.option("--seed", "seed_path", help="Path to newline-delimited seed prompts.")
 @click.option("--from-log", "from_log", type=click.Path(exists=True), help="Generate from an existing log file instead of live probing.")
@@ -86,11 +124,12 @@ def _print_generated_test_preview(output_dir: Path, max_files: int = 2) -> None:
 )
 @click.option("--include-tools", help="Comma-separated tool names to focus on.")
 @click.option("--exclude-tools", help="Comma-separated tool names to avoid.")
-@click.option("--timeout", default=30.0, type=float, help="Probe timeout in seconds.")
+@click.option("--timeout", default=120.0, type=float, help="Probe timeout in seconds.")
 @click.option("--allow-private-urls", is_flag=True, help="Allow private/local agent URLs.")
 @click.option("--allow-live-side-effects", is_flag=True, help="Allow prompts that may trigger side-effecting tools.")
 @click.option("--keep-old", is_flag=True, help="Keep existing generated drafts instead of replacing the output folder.")
 @click.option("--dry-run", is_flag=True, help="Preview generation without writing files.")
+@click.option("--no-synthesize", is_flag=True, help="Skip LLM-powered prompt synthesis (use heuristic prompts only).")
 @track_command("generate")
 def generate(
     agent_url: str | None,
@@ -107,6 +146,7 @@ def generate(
     allow_live_side_effects: bool,
     keep_old: bool,
     dry_run: bool,
+    no_synthesize: bool,
 ) -> None:
     """Generate a draft regression suite from live agent probing.
 
@@ -166,6 +206,33 @@ def generate(
         console.print("[dim]Side effects:[/dim] safe mode")
     console.print()
 
+    # Shared state for the probe progress spinner
+    _probe_status = {"spinner": None}
+
+    def _on_probe(num: int, total: int, query: str, status: str, tools: list) -> None:
+        spinner = _probe_status.get("spinner")
+        if spinner:
+            spinner.stop()
+        if status == "info":
+            # Status update (e.g., multi-turn in progress) — just update spinner
+            spinner = console.status(f"[dim]  {query}[/dim]", spinner="dots")
+            spinner.start()
+            _probe_status["spinner"] = spinner
+            return
+        if status == "fail":
+            console.print(f"[dim]  [red]✗[/red] [{num}/{total}] {query} [timeout][/dim]")
+        elif tools:
+            console.print(f"[dim]  [green]✓[/green] [{num}/{total}] {query} → {', '.join(tools[:3])}[/dim]")
+        else:
+            console.print(f"[dim]  [green]✓[/green] [{num}/{total}] {query}[/dim]")
+        # Start spinner for the next phase
+        if num < total:
+            spinner = console.status(f"[dim]  Probing [{num + 1}/{total}]...[/dim]", spinner="dots")
+        else:
+            spinner = console.status("[dim]  Building tests...[/dim]", spinner="dots")
+        spinner.start()
+        _probe_status["spinner"] = spinner
+
     if from_log:
         from evalview.importers.log_importer import parse_log_file
 
@@ -181,6 +248,12 @@ def generate(
         entries = parse_log_file(Path(from_log), fmt=log_format, max_entries=budget)
         result = generator.generate_from_log_entries(entries)
     else:
+        # Start spinner before first probe
+        _probe_status["spinner"] = console.status(
+            f"[dim]  Probing [1/{budget}]...[/dim]", spinner="dots"
+        )
+        _probe_status["spinner"].start()
+
         result = run_generation(
             adapter=adapter,
             endpoint=endpoint or "",
@@ -191,7 +264,14 @@ def generate(
             exclude_tools=excluded,
             allow_live_side_effects=allow_live_side_effects,
             project_root=Path.cwd(),
+            synthesize=not no_synthesize,
+            on_probe_complete=_on_probe,
         )
+
+    # Stop any lingering spinner
+    if _probe_status.get("spinner"):
+        _probe_status["spinner"].stop()
+        _probe_status["spinner"] = None
 
     if not result.tests:
         console.print("[yellow]⚠ No draft tests were generated.[/yellow]")
@@ -217,9 +297,30 @@ def generate(
     )
     output_dir = Path(out_dir)
 
+    # ── Show all tests for review before writing ──────────────────────────
+    _print_test_summary_table(result.tests)
+    _print_test_yaml_inline(result.tests, generator)
+
+    if result.failures:
+        console.print(f"[yellow]⚠ {len(result.failures)} probe(s) failed (timeout / error):[/yellow]")
+        for failure in result.failures[:5]:
+            console.print(f"[dim]  • {failure[:120]}[/dim]")
+        if len(result.failures) > 5:
+            console.print(f"[dim]  + {len(result.failures) - 5} more[/dim]")
+        console.print()
+
     if dry_run:
         console.print(f"[green]✓ Would generate {len(result.tests)} draft tests[/green]")
     else:
+        # ── Ask for approval ──────────────────────────────────────────────
+        approved = click.confirm(
+            f"Save these {len(result.tests)} tests to {out_dir}?",
+            default=True,
+        )
+        if not approved:
+            console.print("[dim]Discarded. Re-run with --seed or --budget to adjust.[/dim]")
+            raise click.Abort()
+
         replacing_existing = output_dir.exists() and any(output_dir.iterdir())
         generated_yaml, handwritten_yaml = generator.classify_output_dir(output_dir)
         full_replace_confirmed = False
@@ -240,14 +341,20 @@ def generate(
             replace_existing=not keep_old and not full_replace_confirmed,
         )
         ProjectStateStore().set_active_test_path(out_dir)
-        console.print(f"[green]✓ Generated {len(result.tests)} draft tests[/green]")
+        console.print(f"[green]✓ Saved {len(result.tests)} tests[/green]")
         console.print(f"[dim]Output:[/dim] {output_dir}")
         console.print(f"[dim]Files written:[/dim] {len(written)}")
         if full_replace_confirmed:
             console.print("[dim]Replaced all YAML drafts in this folder, including hand-written tests.[/dim]")
         elif replacing_existing and not keep_old:
             console.print("[dim]Replaced previous generated drafts in this folder.[/dim]")
-        _print_generated_test_preview(output_dir)
+
+    # Explain clustering if probes > tests
+    if result.probes_run > len(result.tests) and len(result.tests) > 0:
+        console.print(
+            f"[dim]{result.probes_run} probes → {len(result.tests)} tests "
+            f"(duplicate behavior paths were merged)[/dim]"
+        )
 
     covered = result.report.get("covered", {})
     discovery = result.report.get("discovery", {})
@@ -277,6 +384,14 @@ def generate(
         for source, count in prompt_sources.items():
             console.print(f"  {source}: {count}")
 
+    synthesis_info = result.report.get("prompt_synthesis", {})
+    if synthesis_info.get("count", 0) > 0:
+        console.print()
+        console.print(
+            f"[bold]Prompt synthesis[/bold]: {synthesis_info['count']} "
+            "domain-specific prompts via LLM"
+        )
+
     gaps = result.report.get("gaps", [])
     if gaps:
         console.print()
@@ -289,8 +404,5 @@ def generate(
         console.print("[dim]Re-run without --dry-run to write tests.[/dim]")
     else:
         console.print(f"[dim]Next: review {output_dir}, then run evalview snapshot {out_dir}[/dim]")
-        if keep_old:
-            console.print("[dim]Used --keep-old, so older generated drafts in this folder were preserved.[/dim]")
-        if not allow_live_side_effects:
-            console.print("[dim]Safe mode blocked prompts aimed at side-effecting tools where possible.[/dim]")
-        console.print("[dim]Generate writes editable YAML tests plus generated.report.json; it does not open or create an HTML report.[/dim]")
+        if budget <= 8:
+            console.print(f"[dim]Want more coverage? Re-run with --budget 20 (or up to 100).[/dim]")

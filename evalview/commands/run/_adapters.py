@@ -54,7 +54,7 @@ def build_adapter(
         return LangGraphAdapter(
             endpoint=resolved_endpoint,
             headers=cfg.get("headers", {}),
-            timeout=cfg.get("timeout", 30.0),
+            timeout=cfg.get("timeout", 120.0),
             streaming=cfg.get("streaming", False),
             verbose=verbose,
             model_config=model_config,
@@ -156,7 +156,7 @@ def build_adapter(
 
         return MCPAdapter(
             endpoint=resolved_endpoint,
-            timeout=cfg.get("timeout", 30.0),
+            timeout=cfg.get("timeout", 120.0),
         )
 
     if adapter_type == "cohere":
@@ -175,7 +175,7 @@ def build_adapter(
     return HTTPAdapter(
         endpoint=resolved_endpoint,
         headers=cfg.get("headers", {}),
-        timeout=cfg.get("timeout", 30.0),
+        timeout=cfg.get("timeout", 120.0),
         model_config=model_config,
         allow_private_urls=allow_private_urls,
     )

@@ -429,6 +429,6 @@ def display_trust_frame(
                 pass
     elif failed > 0:
         console.print(
-            f"[bold red]Regression detected in {failed} test{'s' if failed != 1 else ''}.[/bold red] "
-            "Review changes before shipping.\n"
+            f"[bold red]{failed} test{'s' if failed != 1 else ''} failed.[/bold red] "
+            "Review scores and agent behavior above.\n"
         )

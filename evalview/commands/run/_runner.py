@@ -252,7 +252,7 @@ def _print_completion_box(
     elif failed == 0:
         console.print("[bold cyan]║[/bold cyan]  [bold green]✓ AGENT HEALTHY[/bold green]                                               [bold cyan]║[/bold cyan]")
     else:
-        console.print("[bold cyan]║[/bold cyan]  [bold red]✗ REGRESSION DETECTED[/bold red]                                        [bold cyan]║[/bold cyan]")
+        console.print("[bold cyan]║[/bold cyan]  [bold red]✗ TESTS FAILED[/bold red]                                               [bold cyan]║[/bold cyan]")
     console.print("[bold cyan]║[/bold cyan]                                                                  [bold cyan]║[/bold cyan]")
     if execution_errors > 0:
         console.print(f"[bold cyan]║[/bold cyan]  [green]✓ Passed:[/green] {passed:<4}  [red]✗ Failed:[/red] {failed:<4}  [red]⚠ Errors:[/red] {execution_errors:<4}         [bold cyan]║[/bold cyan]")

@@ -273,13 +273,14 @@ class Celebrations:
 
         console.print()
         console.print(Panel(
-            f"{health_emoji} [bold]Project Health: {pass_rate:.0f}%[/bold]\n\n"
+            f"{health_emoji} [bold]Historical Check Health: {pass_rate:.0f}%[/bold]\n\n"
+            "[dim]Based on your full local check history, not just this run.[/dim]\n\n"
             f"  Total checks: {total}\n"
             f"  Clean: {clean}\n"
             f"  Regressions: {state.regression_count}\n"
             f"  Current streak: {state.current_streak}\n"
             f"  Best streak: {state.longest_streak}",
-            title="Health Summary",
+            title="History Summary",
             border_style="blue"
         ))
         console.print()
