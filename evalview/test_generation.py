@@ -752,18 +752,19 @@ class AgentTestGenerator:
         return "direct_answer"
 
     def _is_meaningful_follow_up(self, first_probe: ProbeResult, follow_up_probe: ProbeResult) -> bool:
-        """Only keep follow-ups that materially advance the conversation."""
+        """Only keep follow-ups that materially advance the conversation.
+
+        A follow-up is meaningful if it produces a different response from
+        the first turn — regardless of whether it uses tools.  Real multi-turn
+        conversations often have a tool-using first turn and a text-only
+        follow-up (or vice versa).
+        """
         first_output = _normalize_text_for_comparison(first_probe.trace.final_output or "")
         second_output = _normalize_text_for_comparison(follow_up_probe.trace.final_output or "")
 
         if not second_output:
             return False
         if first_output == second_output:
-            return False
-        if (
-            not follow_up_probe.tools
-            and follow_up_probe.behavior_class == first_probe.behavior_class
-        ):
             return False
         if _normalize_text_for_comparison(_SAFE_FOLLOW_UP) in second_output:
             return False
