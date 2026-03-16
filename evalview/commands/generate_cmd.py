@@ -159,10 +159,10 @@ def generate(
 
     # Interactive budget selection when not explicitly provided
     if budget is None and from_log is None:
-        console.print("[bold]How many probes?[/bold]\n")
-        console.print("  [cyan]1.[/cyan] Quick    (4 probes,  ~1 min)   [dim]← recommended[/dim]")
-        console.print("  [cyan]2.[/cyan] Standard (8 probes,  ~2 min)")
-        console.print("  [cyan]3.[/cyan] Thorough (20 probes, ~5 min)")
+        console.print("[bold]How many tests to generate?[/bold]\n")
+        console.print("  [cyan]1.[/cyan] Quick    (~4 tests,  ~1 min)   [dim]← recommended[/dim]")
+        console.print("  [cyan]2.[/cyan] Standard (~8 tests,  ~2 min)")
+        console.print("  [cyan]3.[/cyan] Thorough (~20 tests, ~5 min)")
         console.print()
         choice = click.prompt("Choice", default="1", show_default=False).strip()
         budget_map = {"1": 4, "2": 8, "3": 20}
