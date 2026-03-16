@@ -224,6 +224,11 @@ def _patch_generate_for_fake_adapter(monkeypatch, adapter_cls=None):
         "evalview.test_generation.AgentTestGenerator._select_synthesis_client",
         staticmethod(lambda model_override=None: None),
     )
+    # Prevent interactive model selection prompt in tests
+    monkeypatch.setattr(
+        "evalview.commands.generate_cmd.detect_available_providers",
+        lambda: [],
+    )
 
 
 def test_generate_writes_clustered_draft_suite(monkeypatch, tmp_path):

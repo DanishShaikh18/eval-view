@@ -12,6 +12,7 @@ from evalview.commands.shared import _detect_agent_endpoint, _load_config_if_exi
 from evalview.core.adapter_factory import create_adapter
 from evalview.core.project_state import ProjectStateStore
 from evalview.telemetry.decorators import track_command
+from evalview.core.llm_configs import detect_available_providers
 from evalview.test_generation import AgentTestGenerator, load_seed_prompts, run_generation
 
 
@@ -192,6 +193,42 @@ def generate(
         console.print()
     elif budget is None:
         budget = 4
+
+    # Interactive synthesis model selection when not explicitly provided
+    if synth_model is None and from_log is None and not no_synthesize:
+        try:
+            available = detect_available_providers()
+            available_set = {p.provider.value for p in available}
+        except Exception:
+            available_set = set()
+
+        # Build model choices from what's available
+        _model_choices = []
+        if "openai" in available_set:
+            _model_choices.append(("gpt-5-mini", "OpenAI GPT-5 Mini — fast & cheap"))
+            _model_choices.append(("gpt-5.4", "OpenAI GPT-5.4 — best quality"))
+        if "anthropic" in available_set:
+            _model_choices.append(("claude-haiku-4-5-20251001", "Claude Haiku — fast & cheap"))
+            _model_choices.append(("claude-sonnet-4-5-20250929", "Claude Sonnet — best quality"))
+        if "gemini" in available_set:
+            _model_choices.append(("gemini-2.0-flash", "Gemini Flash — free tier"))
+        if "deepseek" in available_set:
+            _model_choices.append(("deepseek-chat", "DeepSeek — ultra cheap"))
+
+        if _model_choices:
+            console.print("[bold]Which model for test synthesis?[/bold]\n")
+            for i, (model, desc) in enumerate(_model_choices, 1):
+                rec = "  [dim]← recommended[/dim]" if i == 1 else ""
+                console.print(f"  [cyan]{i}.[/cyan] {desc}{rec}")
+            console.print()
+            model_choice = click.prompt("Choice", default="1", show_default=False).strip()
+            try:
+                idx = int(model_choice) - 1
+                if 0 <= idx < len(_model_choices):
+                    synth_model = _model_choices[idx][0]
+            except ValueError:
+                pass
+            console.print()
 
     needs_live_agent = from_log is None
     endpoint = (
