@@ -111,7 +111,7 @@ def _print_generated_test_preview(output_dir: Path, max_files: int = 2) -> None:
 @click.command("generate")
 @click.option("--agent", "agent_url", help="Agent endpoint URL. Defaults to config or auto-detect.")
 @click.option("--adapter", "adapter_type", default=None, help="Adapter type (default: config or http).")
-@click.option("--budget", default=4, type=click.IntRange(1, 100), help="Number of probe runs (default: 4, increase with --budget 20 for broader coverage).")
+@click.option("--budget", default=None, type=click.IntRange(1, 100), help="Number of probe runs. If omitted, you'll be asked interactively.")
 @click.option("--out", "out_dir", default="tests/generated", help="Output directory for generated tests.")
 @click.option("--seed", "seed_path", help="Path to newline-delimited seed prompts.")
 @click.option("--from-log", "from_log", type=click.Path(exists=True), help="Generate from an existing log file instead of live probing.")
@@ -152,10 +152,31 @@ def generate(
 
     Examples:
         evalview generate --agent http://localhost:8000
-        evalview generate --budget 40 --seed prompts.txt
+        evalview generate --budget 20 --seed prompts.txt
         evalview generate --dry-run
     """
     config = _load_config_if_exists()
+
+    # Interactive budget selection when not explicitly provided
+    if budget is None and from_log is None:
+        console.print("[bold]How many probes?[/bold]\n")
+        console.print("  [cyan]1.[/cyan] Quick    (4 probes,  ~1 min)   [dim]← recommended[/dim]")
+        console.print("  [cyan]2.[/cyan] Standard (8 probes,  ~2 min)")
+        console.print("  [cyan]3.[/cyan] Thorough (20 probes, ~5 min)")
+        console.print()
+        choice = click.prompt("Choice", default="1", show_default=False).strip()
+        budget_map = {"1": 4, "2": 8, "3": 20}
+        if choice in budget_map:
+            budget = budget_map[choice]
+        else:
+            # Treat as a direct number
+            try:
+                budget = max(1, min(100, int(choice)))
+            except ValueError:
+                budget = 4
+        console.print()
+    elif budget is None:
+        budget = 4
 
     needs_live_agent = from_log is None
     endpoint = (
@@ -404,5 +425,3 @@ def generate(
         console.print("[dim]Re-run without --dry-run to write tests.[/dim]")
     else:
         console.print(f"[dim]Next: review {output_dir}, then run evalview snapshot {out_dir}[/dim]")
-        if budget <= 8:
-            console.print(f"[dim]Want more coverage? Re-run with --budget 20 (or up to 100).[/dim]")

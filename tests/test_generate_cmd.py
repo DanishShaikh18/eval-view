@@ -243,7 +243,6 @@ def test_generate_writes_clustered_draft_suite(monkeypatch, tmp_path):
     assert "Generated Tests" in result.output
     assert "Prompt sources" in result.output
     assert "Save these" in result.output
-    assert "Want more coverage?" in result.output
 
     yaml_files = sorted(out_dir.glob("*.yaml"))
     assert len(yaml_files) >= 4
