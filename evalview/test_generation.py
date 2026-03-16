@@ -24,12 +24,13 @@ logger = logging.getLogger(__name__)
 _CAPABILITY_PROMPT = "Hello, what can you help me with?"
 
 # Discovery probes — ask the agent about itself BEFORE generating tests.
-# A PM would research the product first: understand capabilities, get real
-# examples, learn what data it works with.  These are the richest cold-start
-# signals for deriving domain semantics.
-_DISCOVERY_EXAMPLE_PROMPT = "Show me a few example requests or tasks you handle well."
-_DISCOVERY_DOMAIN_PROMPT = "What types of data or information do you work with?"
-_DISCOVERY_PROMPTS = [_CAPABILITY_PROMPT, _DISCOVERY_EXAMPLE_PROMPT, _DISCOVERY_DOMAIN_PROMPT]
+# Designed to extract real user workflows, not abstract capabilities.
+# A PM would ask: "What do your users actually DO with you day-to-day?"
+_DISCOVERY_WORKFLOWS_PROMPT = (
+    "What are the 3 most common things your users ask you to do? "
+    "Give me a realistic example of each."
+)
+_DISCOVERY_PROMPTS = [_CAPABILITY_PROMPT, _DISCOVERY_WORKFLOWS_PROMPT]
 _FRAGMENT_ENDINGS = (
     " for", " the", " a", " an", " of", " in", " on", " to", " with", " and", " or", " e.g.", "(e.g.",
 )
@@ -142,31 +143,31 @@ _QUOTED_PROMPT = re.compile(r'["\u201c\u201d]([^"\u201c\u201d]{8,180})["\u201c\u
 # LLM-powered prompt synthesis
 # ---------------------------------------------------------------------------
 _SYNTHESIS_SYSTEM_PROMPT = """\
-You generate test prompts for an AI agent. Your job is to understand exactly \
-what this agent does from ALL the context provided, then create prompts that \
-real users of THIS SPECIFIC agent would type.
+You generate test prompts for an AI agent. Your job is to create prompts \
+that represent REAL BUSINESS WORKFLOWS — the actual tasks users perform \
+with this agent day-to-day.
 
-CRITICAL: Derive the agent's domain from the full context — capabilities, \
-tool descriptions, project docs, and example queries. Do NOT guess from \
-keywords alone. "pain tracker" might mean product-friction tracking, medical \
-symptoms, or manufacturing defects. "booking" might mean hotel rooms, \
-meeting rooms, or accounting entries. Read everything carefully before \
-generating a single prompt.
+CRITICAL: Derive the agent's domain from ALL the context below. Do NOT \
+guess from keywords alone. "pain tracker" might mean product-friction \
+tracking, medical symptoms, or manufacturing defects. Read everything.
 
 Steps:
-1. Read all context to determine the exact domain, product, and user persona
-2. Generate prompts as those real users would phrase them — their vocabulary, \
-their actual workflows, their real-world concerns
+1. Identify the domain, product, and who the real users are
+2. Think about their actual daily workflows — what do they open this \
+agent to DO?
+3. Write prompts as those users would type them in a real work session
 
 Rules:
-- Use vocabulary and concerns specific to THIS domain, not generic synonyms
-- Use concrete values appropriate to the domain: real-sounding names, dates, \
-quantities, statuses — not placeholders like <name> or {date}
+- Each prompt must be a FIRST-CLASS USER TASK — something a user would \
+initiate on their own, not a follow-up or system-generated query
+- NEVER use meta-prompts like "use the default", "continue", "show me \
+your capabilities", or "what can you do" — those are test scaffolding
+- Use real-world specifics: product names, company names, actual dates, \
+realistic quantities
 - Never mention tool names, API endpoints, or system internals
 - Users describe what they NEED, not how the system should do it
-- Vary length and style: terse one-liners, detailed requests, questions, \
-casual commands
-- Each prompt must test a meaningfully different scenario
+- Focus on BUSINESS OUTCOMES: "find issues blocking our launch" not \
+"search the database"
 
 Respond with JSON only: {"prompts": [{"text": "...", "category": \
 "happy_path|edge_case|multi_step|ambiguous"}]}\
@@ -289,14 +290,14 @@ class AgentTestGenerator:
             if on_probe_complete:
                 on_probe_complete(probes_run, budget, query[:60], "ok", probe.tools)
 
-            if probe.signature not in clustered:
-                clustered[probe.signature] = probe
-
-            # Collect discovery responses — the agent's own words about
-            # its capabilities and examples are the richest signal for
-            # understanding domain semantics at cold start.
-            if self.prompt_sources.get(query) == "discovery":
+            # Discovery probes gather context for synthesis — they should
+            # NOT become test cases themselves.  "Hello, what can you help me
+            # with?" is a generator artifact, not a production user task.
+            is_discovery = self.prompt_sources.get(query) == "discovery"
+            if is_discovery:
                 discovery_responses.append(probe.trace.final_output or "")
+            elif probe.signature not in clustered:
+                clustered[probe.signature] = probe
 
             # Synthesize after the discovery phase completes: we now have
             # capability overview + example requests + domain info + tool
@@ -318,8 +319,8 @@ class AgentTestGenerator:
 
             # Multi-turn: generate a natural follow-up and attach it to
             # the SAME probe — so it becomes one test with 2 turns, not two
-            # separate tests.
-            if probe.behavior_class in {"tool_path", "clarification"}:
+            # separate tests.  Skip for discovery probes (context only).
+            if not is_discovery and probe.behavior_class in {"tool_path", "clarification"}:
                 if on_probe_complete:
                     on_probe_complete(probes_run, budget, "generating follow-up...", "info", [])
                 follow_up_probe = await self._generate_multi_turn_probe(probe)
@@ -610,9 +611,7 @@ class AgentTestGenerator:
                     if keyword in normalized:
                         candidates.extend(prompts)
 
-        if probe.behavior_class == "clarification":
-            candidates.append("Use the most sensible default and continue.")
-        elif probe.behavior_class == "refusal":
+        if probe.behavior_class == "refusal":
             candidates.append("Tell me what safe alternative you can help with instead.")
 
         return [candidate for candidate in candidates if self._prompt_is_allowed(candidate)]
@@ -1232,22 +1231,22 @@ class AgentTestGenerator:
                 f"REAL USER QUERIES (match this style and domain vocabulary):\n{seed_lines}\n"
             )
 
-        happy = max(1, n_prompts - 4)
-        parts.append(f"Generate exactly {n_prompts} prompts covering:")
         parts.append(
-            f"- {happy} core tasks real users of THIS product perform daily (category: happy_path)"
+            f"Generate exactly {n_prompts} prompts. Each must be a standalone "
+            f"user task — something a real user would type to START a work session.\n"
+            f"Think: what does a PM/engineer open this agent to DO on a Monday morning?\n"
         )
         parts.append(
-            "- 1 first-time user request — what someone new to the product would try (category: onboarding)"
+            "Examples of GOOD prompts (specific business tasks):\n"
+            "- \"What are the top pain points for Slack this week?\"\n"
+            "- \"Run a new collection from Reddit and HN\"\n"
+            "- \"Any severity 9+ issues about our competitors?\"\n"
         )
         parts.append(
-            "- 1 edge case with unusual input or boundary condition (category: edge_case)"
-        )
-        parts.append(
-            "- 1 multi-step request combining multiple capabilities (category: multi_step)"
-        )
-        parts.append(
-            "- 1 ambiguous or vague request (category: ambiguous)"
+            "Examples of BAD prompts (test scaffolding, not real tasks):\n"
+            "- \"What can you help me with?\" (capability probe)\n"
+            "- \"Use the most sensible default and continue\" (system artifact)\n"
+            "- \"Show me example requests\" (meta-query)\n"
         )
 
         return "\n".join(parts)
