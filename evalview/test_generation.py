@@ -374,6 +374,11 @@ class AgentTestGenerator:
         if synthesize:
             await self._refine_tests_with_llm(tests, list(clustered.values()))
 
+        # Drop tests where the prompt intent doesn't match observed behavior
+        # (e.g., prompt says "run collection" but agent only searched).
+        if synthesize:
+            tests = await self._filter_incoherent_tests(tests)
+
         report = self._build_report(
             clustered=list(clustered.values()),
             probes_run=probes_run,
@@ -1378,6 +1383,58 @@ class AgentTestGenerator:
                 stable = [p for p in contains if isinstance(p, str) and 2 < len(p) < 25]
                 if stable and test.expected.output:
                     test.expected.output.contains = stable[:3]
+
+    async def _filter_incoherent_tests(self, tests: List[Any]) -> List[Any]:
+        """Drop tests where the prompt intent doesn't match observed behavior.
+
+        Uses a cheap LLM call to check semantic coherence: if a prompt says
+        "run a collection" but the agent only searched, the test is misleading
+        and should be dropped rather than creating a noisy regression baseline.
+        """
+        client = self._select_synthesis_client()
+        if client is None or len(tests) <= 1:
+            return tests
+
+        items = []
+        for test in tests:
+            tools = test.expected.tools or []
+            items.append({
+                "query": test.input.query[:200],
+                "tools_used": tools[:5],
+                "test_name": test.name,
+            })
+
+        try:
+            result = await client.chat_completion(
+                system_prompt=(
+                    "You validate test coherence. For each test, check if the "
+                    "user's query semantically matches the tools that were actually "
+                    "called. A mismatch means the agent didn't do what the user asked."
+                ),
+                user_prompt=(
+                    "For each test, respond with 'keep' if the query and tools match "
+                    "semantically, or 'drop' if they clearly don't match.\n"
+                    "Example: query='Run a new collection' tools=['search_pain_history'] → drop "
+                    "(user asked to run collection, agent only searched)\n"
+                    "Example: query='Find pain points for Slack' tools=['search_pain_history'] → keep\n\n"
+                    f"Tests:\n{json.dumps(items, indent=2)}\n\n"
+                    'Return JSON: {"verdicts": ["keep", "drop", ...]}'
+                ),
+                temperature=0.1,
+                max_tokens=200,
+            )
+        except Exception:
+            return tests
+
+        verdicts = result.get("verdicts", [])
+        if not isinstance(verdicts, list) or len(verdicts) != len(tests):
+            return tests
+
+        filtered = [t for t, v in zip(tests, verdicts) if v != "drop"]
+        dropped = len(tests) - len(filtered)
+        if dropped:
+            logger.debug("Coherence filter dropped %d incoherent test(s)", dropped)
+        return filtered if filtered else tests  # never drop everything
 
     def _workspace_seed_prompts(self) -> List[PromptCandidate]:
         prompts: List[PromptCandidate] = []
