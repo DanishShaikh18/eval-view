@@ -942,9 +942,13 @@ table tr:hover td{background:rgba(255,255,255,.02)}
         </div>
         <div id="tr{{ loop.index }}" class="item-body" {% if not loop.first %}style="display:none"{% endif %}>
           <div style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:14px">
-            <span class="badge b-blue">Current model: {{ t.model }}</span>
+            <span class="badge b-blue">Model: {{ t.model }}</span>
+            {% if t.baseline_created and t.baseline_created != 'Unknown' %}
             <span class="badge b-purple">Baseline: {{ t.baseline_created }}</span>
+            {% endif %}
+            {% if t.baseline_model and t.baseline_model != 'Unknown' %}
             <span class="badge b-yellow">Baseline model: {{ t.baseline_model }}</span>
+            {% endif %}
           </div>
           {% if t.query %}
           <div style="background:rgba(124,149,255,.06);border:1px solid rgba(124,149,255,.2);border-radius:8px;padding:10px 14px;margin-bottom:14px;font-size:12px;color:var(--muted)">
