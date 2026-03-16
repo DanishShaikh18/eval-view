@@ -414,8 +414,7 @@ def display_trust_frame(
         )
     elif failed == 0 and passed > 0:
         console.print(
-            f"[bold green]Agent healthy.[/bold green] {passed}/{passed} checks passed. "
-            "No regressions detected.\n"
+            f"[bold green]Agent healthy.[/bold green] {passed}/{passed} tests passed.\n"
         )
         if results_file:
             try:
