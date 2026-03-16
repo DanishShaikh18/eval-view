@@ -30,7 +30,9 @@ _DISCOVERY_WORKFLOWS_PROMPT = (
     "What are the 3 most common things your users ask you to do? "
     "Give me a realistic example of each."
 )
-_DISCOVERY_PROMPTS = [_CAPABILITY_PROMPT, _DISCOVERY_WORKFLOWS_PROMPT]
+# Single discovery probe — keeps cold start fast.  The workflows prompt
+# extracts both capabilities AND examples in one call.
+_DISCOVERY_PROMPTS = [_DISCOVERY_WORKFLOWS_PROMPT]
 _FRAGMENT_ENDINGS = (
     " for", " the", " a", " an", " of", " in", " on", " to", " with", " and", " or", " e.g.", "(e.g.",
 )
@@ -320,19 +322,18 @@ class AgentTestGenerator:
                     self._synthesis_succeeded = True
 
             # Multi-turn: generate a natural follow-up and attach it to
-            # the SAME probe — so it becomes one test with 2 turns, not two
-            # separate tests.  Skip for discovery probes (context only).
-            # Also skip if a multi-turn test with similar tools already exists
-            # (prevents near-duplicate multi-turn tests).
+            # the SAME probe.  Counts against budget so user gets predictable
+            # timing.  Limited to 1 multi-turn per run to keep it fast.
             existing_mt_tools = {
                 frozenset(p.tools) for p in clustered.values()
                 if p.behavior_class == "multi_turn"
             }
-            skip_mt = frozenset(probe.tools) in existing_mt_tools
-            if not is_discovery and not skip_mt and probe.behavior_class in {"tool_path", "clarification"}:
+            skip_mt = frozenset(probe.tools) in existing_mt_tools or len(existing_mt_tools) >= 1
+            if not is_discovery and not skip_mt and probes_run < budget and probe.behavior_class in {"tool_path", "clarification"}:
                 if on_probe_complete:
                     on_probe_complete(probes_run, budget, "generating follow-up...", "info", [])
                 follow_up_probe = await self._generate_multi_turn_probe(probe)
+                probes_run += 1  # count the agent call
                 if follow_up_probe is not None:
                     tools_seen.update(follow_up_probe.tools)
                     # Enrich the original probe with multi-turn data

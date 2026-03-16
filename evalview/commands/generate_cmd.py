@@ -175,10 +175,10 @@ def generate(
     # Interactive budget selection when not explicitly provided
     if budget is None and from_log is None:
         console.print("[bold]How many tests to generate?[/bold]")
-        console.print("[dim]Time depends on your agent's speed (LLM agents are slower)[/dim]\n")
-        console.print("  [cyan]1.[/cyan] Quick    (~4 tests,  ~3-6 min)   [dim]← recommended[/dim]")
-        console.print("  [cyan]2.[/cyan] Standard (~8 tests,  ~6-12 min)")
-        console.print("  [cyan]3.[/cyan] Thorough (~20 tests, ~15-30 min)")
+        console.print("[dim]Time depends on your agent's speed[/dim]\n")
+        console.print("  [cyan]1.[/cyan] Quick    (~4 tests,  ~2-3 min)   [dim]← recommended[/dim]")
+        console.print("  [cyan]2.[/cyan] Standard (~8 tests,  ~4-6 min)")
+        console.print("  [cyan]3.[/cyan] Thorough (~20 tests, ~10-15 min)")
         console.print()
         choice = click.prompt("Choice", default="1", show_default=False).strip()
         budget_map = {"1": 4, "2": 8, "3": 20}
