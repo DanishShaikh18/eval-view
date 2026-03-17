@@ -726,14 +726,6 @@ async def _run_async(
         console.print("[dim]   View trends: evalview trends[/dim]")
         console.print("[dim]   Set baseline: evalview baseline set[/dim]\n")
 
-    # ── Quick tips ────────────────────────────────────────────────────────────
-    if not watch and results:
-        if not summary and not coverage:
-            console.print("[dim]Quick views:  evalview run --summary | evalview run --coverage[/dim]")
-        if diff:
-            console.print("[dim]Compare runs: evalview view --run-id <id>[/dim]")
-        console.print()
-
     # ── Guided conversion to snapshot workflow ────────────────────────────────
     if not watch and not diff and results:
         from evalview.core.golden import GoldenStore

@@ -444,7 +444,7 @@ def display_trust_frame(
                 store = GoldenStore()
                 if not any(store.has_golden(r.test_case) for r in results if r):
                     console.print("[dim]Tip: Save this as your baseline so future runs detect regressions:[/dim]")
-                    console.print(f"[dim]   evalview golden save {results_file}[/dim]\n")
+                    console.print("[dim]   evalview snapshot[/dim]\n")
             except Exception:
                 pass
     elif failed > 0:
