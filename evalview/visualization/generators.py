@@ -123,13 +123,19 @@ def _kpis(results: List["EvaluationResult"]) -> Dict[str, Any]:
     scores = [r.score for r in results]
     costs = []
     latencies = []
+    total_input_tokens = 0
+    total_output_tokens = 0
     for r in results:
         try:
             costs.append(r.trace.metrics.total_cost or 0)
             latencies.append(r.trace.metrics.total_latency or 0)
+            if r.trace.metrics.total_tokens:
+                total_input_tokens += r.trace.metrics.total_tokens.input_tokens
+                total_output_tokens += r.trace.metrics.total_tokens.output_tokens
         except AttributeError:
             pass
     models = _collect_models(results)
+    total_tokens = total_input_tokens + total_output_tokens
     return {
         "total": total,
         "passed": passed,
@@ -142,6 +148,9 @@ def _kpis(results: List["EvaluationResult"]) -> Dict[str, Any]:
         "test_names": [r.test_case for r in results],
         "models": models,
         "models_display": ", ".join(models) if models else "Unknown",
+        "total_input_tokens": total_input_tokens,
+        "total_output_tokens": total_output_tokens,
+        "total_tokens": total_tokens,
     }
 
 
@@ -382,10 +391,15 @@ def generate_visual_report(
             cost = r.trace.metrics.total_cost or 0.0
             latency = r.trace.metrics.total_latency or 0.0
             tokens = None
+            input_tokens = 0
+            output_tokens = 0
             if r.trace.metrics.total_tokens:
-                tokens = r.trace.metrics.total_tokens.input_tokens + r.trace.metrics.total_tokens.output_tokens
+                input_tokens = r.trace.metrics.total_tokens.input_tokens
+                output_tokens = r.trace.metrics.total_tokens.output_tokens
+                tokens = input_tokens + output_tokens
         except AttributeError:
             cost, latency, tokens = 0.0, 0.0, None
+            input_tokens, output_tokens = 0, 0
         has_steps = bool(getattr(r.trace, "steps", None))
         models = _extract_models(r)
         baseline_created = ""
@@ -485,6 +499,8 @@ def generate_visual_report(
             "cost": f"${cost:.6f}".rstrip('0').rstrip('.') if cost else "$0",
             "latency": f"{int(latency)}ms",
             "tokens": f"{tokens:,} tokens" if tokens else "",
+            "input_tokens": input_tokens,
+            "output_tokens": output_tokens,
             "score": round(r.score, 1),
             "model": ", ".join(models) if models else "Unknown",
             "baseline_created": baseline_created or "Unknown",
@@ -843,7 +859,7 @@ table tr:hover td{background:rgba(255,255,255,.02)}
         <span class="kpi-icon">💰</span>
         <div class="kpi-label">Total Cost</div>
         <div class="kpi-num c-blue">${{ kpis.total_cost }}</div>
-        <div class="kpi-sub">this run</div>
+        <div class="kpi-sub">{% if kpis.total_tokens %}{{ '{:,}'.format(kpis.total_tokens) }} tokens{% else %}this run{% endif %}</div>
         <div class="kpi-bar"><div class="kpi-bar-fill blue" style="width:30%"></div></div>
       </div>
       <div class="kpi kpi-blue">
@@ -857,16 +873,27 @@ table tr:hover td{background:rgba(255,255,255,.02)}
 
     <div class="meta-row">
       <div class="meta-card">
-        <div class="meta-label">Models Used In This Check</div>
+        <div class="meta-label">Agent Model</div>
         <div class="meta-value">{{ kpis.models_display }}</div>
         <div class="meta-sub">{{ kpis.total }} test{% if kpis.total != 1 %}s{% endif %} in this run</div>
       </div>
+      {% if kpis.total_tokens %}
       <div class="meta-card">
-        <div class="meta-label">Latest Baseline Snapshot</div>
+        <div class="meta-label">Token Usage</div>
+        <div class="meta-value">{{ '{:,}'.format(kpis.total_tokens) }} tokens</div>
+        <div class="meta-sub">in {{ '{:,}'.format(kpis.total_input_tokens) }} / out {{ '{:,}'.format(kpis.total_output_tokens) }}</div>
+      </div>
+      {% endif %}
+    </div>
+    {% if baseline.latest_created_display != 'Unknown' %}
+    <div class="meta-row">
+      <div class="meta-card">
+        <div class="meta-label">Baseline Snapshot</div>
         <div class="meta-value">{{ baseline.latest_created_display }}</div>
-        <div class="meta-sub">Baseline model: {{ baseline.models_display }}</div>
+        <div class="meta-sub">{% if baseline.models_display != 'Unknown' %}Model: {{ baseline.models_display }}{% endif %}</div>
       </div>
     </div>
+    {% endif %}
 
     {% if judge_usage and judge_usage.call_count %}
     <div class="meta-row">
@@ -969,6 +996,12 @@ table tr:hover td{background:rgba(255,255,255,.02)}
         <div id="tr{{ loop.index }}" class="item-body" {% if not loop.first %}style="display:none"{% endif %}>
           <div style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:14px">
             <span class="badge b-blue">Model: {{ t.model }}</span>
+            {% if t.input_tokens or t.output_tokens %}
+            <span class="badge b-blue">in {{ '{:,}'.format(t.input_tokens) }} / out {{ '{:,}'.format(t.output_tokens) }} tokens</span>
+            {% endif %}
+            {% if t.cost != "$0" %}
+            <span class="badge b-blue">{{ t.cost }}</span>
+            {% endif %}
             {% if t.baseline_created and t.baseline_created != 'Unknown' %}
             <span class="badge b-purple">Baseline: {{ t.baseline_created }}</span>
             {% endif %}
