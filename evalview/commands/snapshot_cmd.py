@@ -341,3 +341,18 @@ def snapshot(test_path: str, notes: str, test: str, variant: str, approve_genera
     else:
         console.print(f"\n[green]Baseline updated: {saved_count} test(s)[/green]")
         console.print("[dim]Run: evalview check[/dim]\n")
+
+    # Offer to open the dashboard so users can inspect what was baselined
+    if results and not bool(__import__("os").environ.get("CI")):
+        if click.confirm("Open dashboard to review baseline details?", default=True):
+            try:
+                from evalview.visualization import generate_visual_report
+
+                path = generate_visual_report(
+                    results=results,
+                    auto_open=True,
+                    title="EvalView Snapshot Report",
+                )
+                console.print(f"[dim]Report: {path}[/dim]\n")
+            except Exception as e:
+                console.print(f"[dim]Could not generate report: {e}[/dim]\n")
