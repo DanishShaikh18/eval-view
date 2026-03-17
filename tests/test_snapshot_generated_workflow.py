@@ -86,10 +86,10 @@ thresholds:
     result = runner.invoke(snapshot, ["tests"])
 
     assert result.exit_code == 0
-    assert "require approval" in result.output.lower()
-    assert "(1 found)" in result.output
-    assert "--approve-generated" in result.output
+    assert "need approval" in result.output.lower()
     assert "generated.yaml: hi" in result.output
+    # Interactive prompt should show and default to No
+    assert "approve these drafts" in result.output.lower()
 
 
 def test_snapshot_suggests_generated_subfolder_when_default_path_is_too_broad(monkeypatch, tmp_path):
@@ -122,8 +122,8 @@ thresholds:
     result = runner.invoke(snapshot, ["tests"])
 
     assert result.exit_code == 0
-    assert "tests/generated-from-init" in result.output
-    assert "--approve-generated" in result.output
+    assert "need approval" in result.output.lower()
+    assert "approve these drafts" in result.output.lower()
 
 
 def test_snapshot_lists_multiple_generated_folders_when_needed(monkeypatch, tmp_path):
@@ -159,9 +159,8 @@ thresholds:
     result = runner.invoke(snapshot, ["tests"])
 
     assert result.exit_code == 0
-    assert "multiple folders" in result.output
-    assert "tests/generated --approve-generated" in result.output
-    assert "tests/generated-from-init --approve-generated" in result.output
+    assert "need approval" in result.output.lower()
+    assert "approve these drafts" in result.output.lower()
 
 
 def test_snapshot_uses_active_test_path_when_no_path_is_given(monkeypatch, tmp_path):
@@ -195,8 +194,8 @@ thresholds:
     result = runner.invoke(snapshot, [])
 
     assert result.exit_code == 0
-    assert "tests/generated-from-init" in result.output
-    assert "--approve-generated" in result.output
+    assert "need approval" in result.output.lower()
+    assert "approve these drafts" in result.output.lower()
 
 
 def test_snapshot_does_not_require_approval_for_init_generated_tests(monkeypatch, tmp_path):

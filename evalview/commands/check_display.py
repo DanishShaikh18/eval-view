@@ -354,8 +354,8 @@ def _display_check_results(
                         "Your test names don't match any golden baselines.\n\n"
                         "This usually means tests were regenerated or renamed since the last snapshot.\n\n"
                         "[bold]To fix:[/bold]\n"
-                        "  1. [bold]evalview snapshot[/bold]       — capture new baselines for current tests\n"
-                        "  2. [bold]evalview snapshot --reset[/bold] — delete old baselines first, then capture fresh ones",
+                        "  [bold]evalview snapshot[/bold]         capture new baselines for current tests\n"
+                        "  [bold]evalview snapshot --reset[/bold]  clear old baselines first, then capture fresh",
                         border_style="yellow",
                         title="No matching baselines",
                         padding=(1, 2),

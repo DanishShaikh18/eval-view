@@ -246,27 +246,23 @@ def snapshot(test_path: str, notes: str, test: str, variant: str, approve_genera
 
     draft_generated = [tc for tc in test_cases if _is_generated_draft(tc)]
     if draft_generated and not approve_generated:
-        suggested_paths = _generated_snapshot_paths(test_path, draft_generated)
         console.print(
-            f"[yellow]Generated draft tests require approval before snapshotting ({len(draft_generated)} found).[/yellow]"
+            f"[yellow]{len(draft_generated)} generated draft test(s) need approval:[/yellow]"
         )
         for test_case in draft_generated[:8]:
             source = Path(getattr(test_case, "source_file", test_case.name)).name
             query = getattr(getattr(test_case, "input", None), "query", "") or ""
             preview = query[:60] + ("..." if len(query) > 60 else "")
             console.print(f"  • {test_case.name} [dim]({source}: {preview})[/dim]")
+        if len(draft_generated) > 8:
+            console.print(f"  [dim]... and {len(draft_generated) - 8} more[/dim]")
         console.print()
-        if len(suggested_paths) == 1:
-            console.print(
-                "[dim]Review the generated YAML, then run: evalview snapshot "
-                f"{suggested_paths[0]} --approve-generated[/dim]\n"
-            )
+
+        if click.confirm("Approve these drafts and snapshot?", default=False):
+            approve_generated = True
         else:
-            console.print("[dim]Generated drafts were found in multiple folders. Approve one folder at a time:[/dim]")
-            for path in suggested_paths:
-                console.print(f"[dim]  • evalview snapshot {path} --approve-generated[/dim]")
-            console.print()
-        return
+            console.print("[dim]Skipped. You can review the YAML files and re-run when ready.[/dim]\n")
+            return
     if draft_generated and approve_generated:
         _approve_generated_tests(draft_generated)
         for test_case in draft_generated:
