@@ -859,7 +859,7 @@ table tr:hover td{background:rgba(255,255,255,.02)}
         <span class="kpi-icon">💰</span>
         <div class="kpi-label">Total Cost</div>
         <div class="kpi-num c-blue">${{ kpis.total_cost }}</div>
-        <div class="kpi-sub">{% if kpis.total_tokens %}{{ '{:,}'.format(kpis.total_tokens) }} tokens{% else %}this run{% endif %}</div>
+        <div class="kpi-sub">{% if kpis.total_tokens %}{{ '{:,}'.format(kpis.total_tokens) }} tokens (verified){% elif kpis.total_cost > 0 %}reported by adapter (no token data){% else %}this run{% endif %}</div>
         <div class="kpi-bar"><div class="kpi-bar-fill blue" style="width:30%"></div></div>
       </div>
       <div class="kpi kpi-blue">
@@ -882,6 +882,12 @@ table tr:hover td{background:rgba(255,255,255,.02)}
         <div class="meta-label">Token Usage</div>
         <div class="meta-value">{{ '{:,}'.format(kpis.total_tokens) }} tokens</div>
         <div class="meta-sub">in {{ '{:,}'.format(kpis.total_input_tokens) }} / out {{ '{:,}'.format(kpis.total_output_tokens) }}</div>
+      </div>
+      {% elif kpis.total_cost > 0 %}
+      <div class="meta-card">
+        <div class="meta-label">Token Usage</div>
+        <div class="meta-value" style="color:var(--yellow)">Not available</div>
+        <div class="meta-sub">Your adapter reports cost but not token counts. Cost cannot be independently verified.</div>
       </div>
       {% endif %}
     </div>
@@ -998,9 +1004,9 @@ table tr:hover td{background:rgba(255,255,255,.02)}
             <span class="badge b-blue">Model: {{ t.model }}</span>
             {% if t.input_tokens or t.output_tokens %}
             <span class="badge b-blue">in {{ '{:,}'.format(t.input_tokens) }} / out {{ '{:,}'.format(t.output_tokens) }} tokens</span>
-            {% endif %}
-            {% if t.cost != "$0" %}
-            <span class="badge b-blue">{{ t.cost }}</span>
+            {% if t.cost != "$0" %}<span class="badge b-blue">{{ t.cost }}</span>{% endif %}
+            {% elif t.cost != "$0" %}
+            <span class="badge b-yellow">{{ t.cost }} (adapter-reported, no token data)</span>
             {% endif %}
             {% if t.baseline_created and t.baseline_created != 'Unknown' %}
             <span class="badge b-purple">Baseline: {{ t.baseline_created }}</span>
