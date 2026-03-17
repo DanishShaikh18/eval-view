@@ -200,6 +200,16 @@ def _print_passed_summary(
 
         console.print("  " + "  ".join(parts))
 
+    # Summary line with test type breakdown
+    n_multi = sum(1 for _, d in diffs if d.turn_diffs)
+    n_single = len(diffs) - n_multi
+    type_parts = []
+    if n_single:
+        type_parts.append(f"{n_single} single-turn")
+    if n_multi:
+        type_parts.append(f"{n_multi} multi-turn")
+    if type_parts:
+        console.print(f"  [dim]{len(diffs)} tests checked: {', '.join(type_parts)}[/dim]")
     console.print()
 
 

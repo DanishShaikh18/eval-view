@@ -390,12 +390,45 @@ def snapshot_list():
 
     console.print("\n[bold]Saved Baselines[/bold]\n")
 
+    single_count = 0
+    multi_count = 0
     for item in sorted(goldens, key=lambda x: x["metadata"].test_name):
         g = item["metadata"]
         variant_count = item["variant_count"]
-        variant_label = f"  [dim]({variant_count} variants)[/dim]" if variant_count > 1 else ""
-        console.print(f"  [cyan]{g.test_name}[/cyan]{variant_label}")
-        console.print(f"    [dim]{g.score:.0f}/100  |  {g.blessed_at.strftime('%Y-%m-%d %H:%M')}[/dim]")
+
+        # Check if multi-turn by loading the golden trace
+        golden = store.load_golden(g.test_name)
+        turns = golden.per_turn_tool_sequences if golden else None
+        n_turns = len(turns) if turns else 0
+
+        tags: List[str] = []
+        if variant_count > 1:
+            tags.append(f"{variant_count} variants")
+        if n_turns >= 2:
+            tags.append(f"{n_turns} turns")
+            multi_count += 1
+        else:
+            single_count += 1
+
+        n_tools = len(golden.tool_sequence) if golden else 0
+        tag_str = f"  [dim]({', '.join(tags)})[/dim]" if tags else ""
+
+        console.print(f"  [cyan]{g.test_name}[/cyan]{tag_str}")
+        detail_parts = [f"{g.score:.0f}/100", g.blessed_at.strftime('%Y-%m-%d %H:%M')]
+        if n_tools:
+            tool_str = " → ".join(golden.tool_sequence[:4]) if golden else ""
+            if n_tools > 4:
+                tool_str += f" (+{n_tools - 4})"
+            detail_parts.append(tool_str)
+        console.print(f"    [dim]{' | '.join(detail_parts)}[/dim]")
+
+    console.print()
+    parts = []
+    if single_count:
+        parts.append(f"{single_count} single-turn")
+    if multi_count:
+        parts.append(f"{multi_count} multi-turn")
+    console.print(f"[dim]{len(goldens)} baseline(s): {', '.join(parts)}[/dim]\n")
 
     console.print(f"\n[dim]{len(goldens)} baseline(s)[/dim]\n")
 
