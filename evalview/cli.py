@@ -60,6 +60,9 @@ def main(ctx: click.Context) -> None:
     \b
     Regression Gating — did my agent change?
       snapshot                Capture current behavior as baseline
+      snapshot list            List saved baselines
+      snapshot show <name>    Inspect a baseline
+      snapshot delete <name>  Remove a baseline
       check                   Compare against baseline — catch regressions
 
     \b
