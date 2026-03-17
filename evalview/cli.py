@@ -102,7 +102,6 @@ def main(ctx: click.Context) -> None:
 
     \b
     Advanced:
-      run                     Direct evaluation runner with optional HTML reports
       login                   Connect to EvalView Cloud
       logout                  Disconnect from EvalView Cloud
       whoami                  Show current cloud login status
