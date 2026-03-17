@@ -1366,5 +1366,39 @@ function tog(id,head){
 })();
 {% endif %}
 </script>
+
+<!-- Share bar -->
+<div style="
+  position:fixed;bottom:0;left:0;right:0;z-index:100;
+  background:rgba(20,22,28,.95);backdrop-filter:blur(12px);
+  border-top:1px solid rgba(255,255,255,.08);
+  padding:10px 24px;
+  display:flex;align-items:center;justify-content:space-between;
+  font-family:var(--font);font-size:12px;color:var(--muted);
+">
+  <span>
+    Built with <a href="https://github.com/hidai25/eval-view" target="_blank" rel="noopener" style="color:var(--blue);text-decoration:none;font-weight:600">EvalView</a>
+    <span style="opacity:.4;margin:0 6px">|</span>
+    Agent testing &amp; regression detection
+  </span>
+  <span style="display:flex;align-items:center;gap:8px">
+    <a href="https://twitter.com/intent/tweet?text=Testing%20my%20AI%20agent%20with%20EvalView%20%E2%80%94%20catches%20regressions%20before%20they%20ship.%20%F0%9F%9B%A1%EF%B8%8F&url=https%3A%2F%2Fgithub.com%2Fhidai25%2Feval-view"
+       target="_blank" rel="noopener"
+       style="display:inline-flex;align-items:center;gap:4px;padding:5px 12px;border-radius:6px;background:rgba(29,155,240,.12);color:#1d9bf0;text-decoration:none;font-weight:600;font-size:11px;transition:background .15s"
+       onmouseover="this.style.background='rgba(29,155,240,.25)'" onmouseout="this.style.background='rgba(29,155,240,.12)'">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg>
+      Share
+    </a>
+    <a href="https://github.com/hidai25/eval-view"
+       target="_blank" rel="noopener"
+       style="display:inline-flex;align-items:center;gap:4px;padding:5px 12px;border-radius:6px;background:rgba(255,255,255,.06);color:var(--text);text-decoration:none;font-weight:600;font-size:11px;transition:background .15s"
+       onmouseover="this.style.background='rgba(255,255,255,.12)'" onmouseout="this.style.background='rgba(255,255,255,.06)'">
+      <svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor"><path d="M8 0c4.42 0 8 3.58 8 8a8.013 8.013 0 0 1-5.45 7.59c-.4.08-.55-.17-.55-.38 0-.27.01-1.13.01-2.2 0-.75-.25-1.23-.54-1.48 1.78-.2 3.65-.88 3.65-3.95 0-.88-.31-1.59-.82-2.15.08-.2.36-1.02-.08-2.12 0 0-.67-.22-2.2.82-.64-.18-1.32-.27-2-.27-.68 0-1.36.09-2 .27-1.53-1.03-2.2-.82-2.2-.82-.44 1.1-.16 1.92-.08 2.12-.51.56-.82 1.28-.82 2.15 0 3.06 1.86 3.75 3.64 3.95-.23.2-.44.55-.51 1.07-.46.21-1.61.55-2.33-.66-.15-.24-.6-.83-1.23-.82-.67.01-.27.38.01.53.34.19.73.9.82 1.13.16.45.68 1.31 2.69.94 0 .67.01 1.3.01 1.49 0 .21-.15.45-.55.38A7.995 7.995 0 0 1 0 8c0-4.42 3.58-8 8-8Z"/></svg>
+      Star
+    </a>
+  </span>
+</div>
+<div style="height:44px"></div><!-- spacer for fixed bar -->
+
 </body>
 </html>"""
