@@ -475,9 +475,18 @@ async def _run_async(
             os.environ["EVAL_MODEL"] = resolve_model_alias(judge_yaml_cfg["model"])
 
     # Always show which judge model is being used
-    judge_model_display = os.environ.get("EVAL_MODEL", "")
-    if judge_model_display and not no_judge:
-        console.print(f"[dim]⚖️  Judge model: {judge_model_display}[/dim]")
+    _jmd = os.environ.get("EVAL_MODEL", "")
+    _jpd = os.environ.get("EVAL_PROVIDER", "")
+    if _jmd and not no_judge:
+        _judge_display = f"{_jpd}/{_jmd}" if _jpd else _jmd
+        console.print(f"[dim]⚖️  Judge model: {_judge_display}[/dim]")
+    elif not no_judge:
+        from evalview.core.llm_configs import detect_available_providers as _dap
+        from evalview.core.llm_configs import PROVIDER_CONFIGS as _PC2
+        _avail = _dap()
+        if _avail:
+            _p = _avail[0]
+            console.print(f"[dim]⚖️  Judge model: {_p.provider.value}/{_PC2[_p.provider].default_model} (auto-detected)[/dim]")
 
     # ── Global adapter ────────────────────────────────────────────────────────
     adapter_type = adapter_override or config.get("adapter", "http")
