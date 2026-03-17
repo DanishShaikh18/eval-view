@@ -336,8 +336,10 @@ class AgentTestGenerator:
                 probes_run += 1  # count the agent call
                 if follow_up_probe is None:
                     if on_probe_complete:
-                        on_probe_complete(probes_run, budget, "follow-up skipped", "info", [])
+                        on_probe_complete(probes_run, budget, "follow-up skipped (duplicate)", "ok", [])
                 else:
+                    if on_probe_complete:
+                        on_probe_complete(probes_run, budget, f"follow-up: {follow_up_probe.query[:50]}", "ok", follow_up_probe.tools)
                     tools_seen.update(follow_up_probe.tools)
                     # Enrich the original probe with multi-turn data
                     old_sig = probe.signature
