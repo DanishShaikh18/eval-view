@@ -176,8 +176,9 @@ def _group_tests_by_target(test_cases: List, config) -> Dict[tuple[str, str], li
 @click.option("--variant", help="Save as a named variant for non-deterministic agents (max 5 per test)")
 @click.option("--approve-generated", is_flag=True, help="Approve generated draft tests before snapshotting them.")
 @click.option("--reset", is_flag=True, help="Delete all existing baselines before capturing new ones.")
+@click.option("--judge", "judge_model", default=None, help="Judge model for scoring (e.g. gpt-4o-mini, sonnet, deepseek-chat).")
 @track_command("snapshot")
-def snapshot(test_path: str, notes: str, test: str, variant: str, approve_generated: bool, reset: bool):
+def snapshot(test_path: str, notes: str, test: str, variant: str, approve_generated: bool, reset: bool, judge_model: Optional[str]):
     """Run tests and snapshot passing results as baseline.
 
     This is the simple workflow: snapshot → check → fix → snapshot.
@@ -275,7 +276,11 @@ def snapshot(test_path: str, notes: str, test: str, variant: str, approve_genera
     # Load config
     config = _load_config_if_exists()
 
-    # Apply judge config from config.yaml (env vars / CLI flags take priority)
+    # Apply judge config: --judge flag > env vars > config.yaml
+    if judge_model:
+        import os
+        from evalview.core.llm_configs import resolve_model_alias
+        os.environ["EVAL_MODEL"] = resolve_model_alias(judge_model)
     from evalview.core.config import apply_judge_config
     apply_judge_config(config)
 
