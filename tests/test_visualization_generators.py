@@ -108,9 +108,9 @@ def test_visual_report_shows_model_and_baseline_metadata(tmp_path):
     assert "Token Usage" in html
     assert "Execution Cost per Query" in html
     assert "Trace Cost" in html
-    assert "EvalView Judge Usage" in html
+    assert "EvalView Judge" in html
     assert "$0.0012" in html
-    assert "264 total tokens across 2 judge calls" in html
+    assert "264 tokens across 2 judge calls" in html
 
 
 def test_visual_report_falls_back_for_missing_step_latency_and_baseline_model(tmp_path):

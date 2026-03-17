@@ -906,7 +906,7 @@ table tr:hover td{background:rgba(255,255,255,.02)}
     {% if judge_usage and judge_usage.call_count %}
     <div class="meta-row">
       <div class="meta-card">
-        <div class="meta-label">EvalView Judge Usage</div>
+        <div class="meta-label">EvalView Judge{% if judge_usage.model %} ({{ judge_usage.model }}){% endif %}</div>
         <div class="meta-value">
           {% if judge_usage.total_cost > 0 %}
             ${{ judge_usage.total_cost }}
@@ -917,12 +917,12 @@ table tr:hover td{background:rgba(255,255,255,.02)}
           {% endif %}
         </div>
         <div class="meta-sub">
-          {{ judge_usage.total_tokens }} total tokens across {{ judge_usage.call_count }} judge call{% if judge_usage.call_count != 1 %}s{% endif %}
+          {{ '{:,}'.format(judge_usage.total_tokens) }} tokens across {{ judge_usage.call_count }} judge call{% if judge_usage.call_count != 1 %}s{% endif %}
         </div>
       </div>
       <div class="meta-card">
         <div class="meta-label">Judge Token Breakdown</div>
-        <div class="meta-value">in {{ judge_usage.input_tokens }} / out {{ judge_usage.output_tokens }}</div>
+        <div class="meta-value">in {{ '{:,}'.format(judge_usage.input_tokens) }} / out {{ '{:,}'.format(judge_usage.output_tokens) }}</div>
         <div class="meta-sub">Separate from agent trace cost</div>
       </div>
     </div>

@@ -111,6 +111,12 @@ def _judge_usage_summary() -> Dict[str, Any]:
     from evalview.core.llm_provider import judge_cost_tracker
 
     total_tokens = judge_cost_tracker.total_input_tokens + judge_cost_tracker.total_output_tokens
+    model_display = ""
+    if judge_cost_tracker.model:
+        if judge_cost_tracker.provider:
+            model_display = f"{judge_cost_tracker.provider}/{judge_cost_tracker.model}"
+        else:
+            model_display = judge_cost_tracker.model
     return {
         "call_count": judge_cost_tracker.call_count,
         "input_tokens": judge_cost_tracker.total_input_tokens,
@@ -118,6 +124,7 @@ def _judge_usage_summary() -> Dict[str, Any]:
         "total_tokens": total_tokens,
         "total_cost": round(judge_cost_tracker.total_cost, 6),
         "is_free": judge_cost_tracker.call_count > 0 and judge_cost_tracker.total_cost == 0,
+        "model": model_display,
     }
 
 

@@ -7,7 +7,7 @@ compatibility.
 
 import os
 import logging
-from typing import Dict, List, NamedTuple
+from typing import Dict, List, NamedTuple, Optional
 from dataclasses import dataclass
 from enum import Enum
 
@@ -195,12 +195,17 @@ class JudgeCostTracker:
         self.total_output_tokens = 0
         self.total_cost = 0.0
         self.call_count = 0
+        self.provider: Optional[str] = None
+        self.model: Optional[str] = None
 
     def add_usage(self, provider: str, model: str, input_tokens: int, output_tokens: int):
         """Track token usage and calculate cost."""
         self.total_input_tokens += input_tokens
         self.total_output_tokens += output_tokens
         self.call_count += 1
+        if self.provider is None:
+            self.provider = provider
+            self.model = model
 
         # Calculate cost
         pricing = self.PRICING.get(provider, {})
@@ -256,6 +261,8 @@ class JudgeCostTracker:
         self.total_output_tokens = 0
         self.total_cost = 0.0
         self.call_count = 0
+        self.provider = None
+        self.model = None
 
 
 # Global cost tracker instance
