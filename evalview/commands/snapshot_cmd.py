@@ -175,8 +175,9 @@ def _group_tests_by_target(test_cases: List, config) -> Dict[tuple[str, str], li
 @click.option("--test", "-t", help="Snapshot only this specific test (by name)")
 @click.option("--variant", help="Save as a named variant for non-deterministic agents (max 5 per test)")
 @click.option("--approve-generated", is_flag=True, help="Approve generated draft tests before snapshotting them.")
+@click.option("--reset", is_flag=True, help="Delete all existing baselines before capturing new ones.")
 @track_command("snapshot")
-def snapshot(test_path: str, notes: str, test: str, variant: str, approve_generated: bool):
+def snapshot(test_path: str, notes: str, test: str, variant: str, approve_generated: bool, reset: bool):
     """Run tests and snapshot passing results as baseline.
 
     This is the simple workflow: snapshot → check → fix → snapshot.
@@ -188,6 +189,7 @@ def snapshot(test_path: str, notes: str, test: str, variant: str, approve_genera
         evalview snapshot --test "my-test"        # Snapshot one test only
         evalview snapshot --notes "v2.0"          # Add notes to snapshot
         evalview snapshot --variant variant1      # Save as alternate acceptable behavior
+        evalview snapshot --reset                 # Clear old baselines and start fresh
     """
     from evalview.core.loader import TestCaseLoader
     from evalview.core.project_state import ProjectStateStore
@@ -198,8 +200,24 @@ def snapshot(test_path: str, notes: str, test: str, variant: str, approve_genera
     print_evalview_banner(console, subtitle="[dim]Catch agent regressions before you ship[/dim]")
 
     # Initialize stores
+    from evalview.core.golden import GoldenStore
+
     state_store = ProjectStateStore()
     test_path = _resolve_default_test_path(test_path)
+
+    # Reset: delete all existing baselines before capturing new ones
+    if reset:
+        golden_store = GoldenStore()
+        existing = golden_store.list_golden()
+        if existing:
+            golden_dir = golden_store.golden_dir
+            if golden_dir.exists():
+                import shutil
+                shutil.rmtree(golden_dir)
+                golden_dir.mkdir(parents=True, exist_ok=True)
+            console.print(f"[yellow]Cleared {len(existing)} existing baseline(s).[/yellow]\n")
+        else:
+            console.print("[dim]No existing baselines to clear.[/dim]\n")
 
     # Check if this is the first snapshot ever
     is_first = state_store.is_first_snapshot()

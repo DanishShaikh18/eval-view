@@ -346,13 +346,20 @@ def _display_check_results(
                 if state.total_checks >= 5 and state.total_checks % 5 == 0:
                     Celebrations.health_summary(state)
             else:
+                from rich.panel import Panel as _Panel
+
                 console.print(
-                    "[yellow]0 tests compared.[/yellow] "
-                    "Test names don't match any golden baselines.\n"
-                )
-                console.print(
-                    "[dim]Run [bold]evalview snapshot[/bold] to capture baselines "
-                    "for your current tests.[/dim]\n"
+                    _Panel(
+                        "[yellow]0 tests compared.[/yellow] "
+                        "Your test names don't match any golden baselines.\n\n"
+                        "This usually means tests were regenerated or renamed since the last snapshot.\n\n"
+                        "[bold]To fix:[/bold]\n"
+                        "  1. [bold]evalview snapshot[/bold]       — capture new baselines for current tests\n"
+                        "  2. [bold]evalview snapshot --reset[/bold] — delete old baselines first, then capture fresh ones",
+                        border_style="yellow",
+                        title="No matching baselines",
+                        padding=(1, 2),
+                    )
                 )
         else:
             console.print("\n[bold]Diff Summary[/bold]")
