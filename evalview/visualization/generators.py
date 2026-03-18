@@ -767,8 +767,9 @@ body{font-family:var(--font);font-size:14px;line-height:1.6;color:var(--text);mi
 details[open] .turn-chevron{transform:rotate(90deg)}
 .item-body{padding:18px;border-top:1px solid var(--border);background:rgba(0,0,0,.12)}
 .mermaid-box{background:rgba(0,0,0,.18);border:1px solid rgba(51,65,85,.35);border-radius:var(--r-sm);padding:24px 18px;overflow-x:auto;min-height:180px}
-.mermaid-box svg{min-width:560px;max-width:100%;height:auto;display:block;margin:0 auto}
-.mermaid-box .mermaid{min-width:560px}
+.mermaid-box svg{min-width:640px;max-width:100%;height:auto;display:block;margin:0 auto}
+.mermaid-box .mermaid{min-width:640px}
+.mermaid-box line.actor-line{stroke-dasharray:4 4;stroke:rgba(100,116,139,.15) !important}
 
 /* ── Chat turns ── */
 .chat-container{margin-top:16px;padding:14px;background:rgba(0,0,0,.1);border:1px solid rgba(51,65,85,.25);border-radius:var(--r-sm)}
@@ -1048,12 +1049,12 @@ table td,table th{transition:background .1s}
           </div>{% endif %}
           {% if t.hallucination or t.safety or t.pii or t.forbidden_tools %}
           <div style="display:flex;flex-wrap:wrap;gap:6px;margin-top:10px">
-            {% if t.hallucination %}{% if t.hallucination.has_hallucination %}<span class="badge b-red">🔮 Hallucination ({{ (t.hallucination.confidence * 100)|round(0)|int }}%)</span>{% else %}<span class="badge b-green">🔮 Faithfulness{% if t.hallucination.details and 'Faithfulness:' in t.hallucination.details %} {{ t.hallucination.details.split('\n')[0]|replace('Faithfulness: ', '') }}{% endif %}</span>{% endif %}{% endif %}
+            {% if t.hallucination %}{% if t.hallucination.has_hallucination %}<span class="badge b-red" title="Extracts factual claims from the agent response, then verifies each claim against tool outputs. Score = supported claims / total claims.">🔮 Hallucination detected · {{ (t.hallucination.confidence * 100)|round(0)|int }}%{% if t.hallucination.details %} · {{ t.hallucination.details.split('\n')[0]|replace('Faithfulness: ', '') }}{% endif %}{% if judge_usage and judge_usage.model %} · {{ judge_usage.model }}{% endif %}</span>{% else %}<span class="badge b-green" title="Extracts factual claims from the agent response, then verifies each claim against tool outputs. Score = supported claims / total claims.">🔮 No hallucination{% if t.hallucination.details %} · {{ t.hallucination.details.split('\n')[0]|replace('Faithfulness: ', '') }}{% endif %}{% if judge_usage and judge_usage.model %} · {{ judge_usage.model }}{% endif %}</span>{% endif %}{% endif %}
             {% if t.safety %}{% if t.safety.is_safe %}<span class="badge b-green">🛡 Safe</span>{% else %}<span class="badge b-red">🛡 Unsafe: {{ t.safety.categories|join(', ') }}</span>{% endif %}{% endif %}
             {% if t.pii %}{% if t.pii.has_pii %}<span class="badge b-yellow">🔒 PII detected</span>{% else %}<span class="badge b-green">🔒 No PII</span>{% endif %}{% endif %}
             {% if t.forbidden_tools %}{% if t.forbidden_tools.violations %}<span class="badge b-red">⛔ Forbidden: {{ t.forbidden_tools.violations|join(', ') }}</span>{% else %}<span class="badge b-green">⛔ No violations</span>{% endif %}{% endif %}
           </div>
-          {% if t.hallucination and t.hallucination.has_hallucination and t.hallucination.details %}<div style="background:rgba(168,85,247,.06);border:1px solid rgba(168,85,247,.15);border-radius:var(--r-xs);padding:9px 12px;margin-top:8px;font-size:11px;color:var(--text-3)"><span style="font-weight:600;color:var(--text-2)">Hallucination details:</span> {{ t.hallucination.details[:500] }}{% if t.hallucination.details|length > 500 %}...{% endif %}</div>{% endif %}
+          {% if t.hallucination and t.hallucination.has_hallucination and t.hallucination.details %}<div style="background:rgba(168,85,247,.06);border:1px solid rgba(168,85,247,.15);border-radius:var(--r-xs);padding:9px 12px;margin-top:8px;font-size:11px;color:var(--text-3)"><span style="font-weight:600;color:var(--text-2)">Unsupported claims:</span> {{ t.hallucination.details[:500] }}{% if t.hallucination.details|length > 500 %}...{% endif %}</div>{% endif %}
           {% endif %}
           {% if t.output and not t.turns %}
           <div style="background:rgba(16,185,129,.04);border:1px solid rgba(16,185,129,.1);border-radius:var(--r-xs);padding:9px 12px;margin-top:12px;font-size:13px;color:var(--text-2)">
@@ -1130,7 +1131,7 @@ table td,table th{transition:background .1s}
 <script>
 mermaid.initialize({startOnLoad:true,theme:'dark',securityLevel:'loose',useMaxWidth:true,
   themeVariables:{darkMode:true,background:'transparent',primaryColor:'rgba(37,99,235,.1)',primaryTextColor:'#e2e8f0',primaryBorderColor:'rgba(37,99,235,.25)',lineColor:'rgba(100,116,139,.3)',secondaryColor:'rgba(16,185,129,.06)',tertiaryColor:'rgba(6,182,212,.06)',noteBkgColor:'rgba(37,99,235,.05)',noteTextColor:'#94a3b8',noteBorderColor:'rgba(37,99,235,.15)',actorBkg:'rgba(37,99,235,.08)',actorBorder:'rgba(37,99,235,.2)',actorTextColor:'#e2e8f0',signalColor:'#64748b',signalTextColor:'#cbd5e1'},
-  sequence:{useMaxWidth:true,width:180,wrap:false,actorFontFamily:'Inter,sans-serif',noteFontFamily:'Inter,sans-serif',messageFontFamily:'Inter,sans-serif',actorFontSize:12,messageFontSize:11,noteFontSize:10,boxTextMargin:8,mirrorActors:false,messageAlign:'center',actorMargin:30,bottomMarginAdj:4}
+  sequence:{useMaxWidth:true,width:180,wrap:false,actorFontFamily:'Inter,sans-serif',noteFontFamily:'Inter,sans-serif',messageFontFamily:'Inter,sans-serif',actorFontSize:12,messageFontSize:11,noteFontSize:10,boxTextMargin:12,mirrorActors:false,messageAlign:'center',actorMargin:50,bottomMarginAdj:4,diagramMarginX:20,diagramMarginY:16}
 });
 function show(id,btn){document.querySelectorAll('.panel').forEach(p=>p.classList.remove('on'));document.querySelectorAll('.tab').forEach(t=>t.classList.remove('on'));document.getElementById('p-'+id).classList.add('on');btn.classList.add('on')}
 function tog(id,head){const el=document.getElementById(id);const o=el.style.display!=='none';el.style.display=o?'none':'block';head.querySelector('.chevron').style.transform=o?'':'rotate(180deg)'}
@@ -1162,7 +1163,7 @@ requestAnimationFrame(()=>{setTimeout(()=>{document.querySelectorAll('.gauge-fil
   new Chart(document.getElementById('bars'),{type:'bar',
     data:{labels:sorted.map(s=>s.name),datasets:[{label:'Score',data:sorted.map(s=>s.score),backgroundColor:barBg,borderColor:barBorder,borderWidth:1,borderRadius:3,borderSkipped:false,barPercentage:.55,categoryPercentage:.8}]},
     options:{indexAxis:'y',responsive:true,maintainAspectRatio:false,
-      scales:{x:{min:0,max:100,grid:{color:gc},ticks:{color:tc,font:{family:'Inter',size:9},stepSize:25},border:{display:false}},y:{grid:{display:false},ticks:{color:'rgba(203,213,225,.7)',font:{family:'Inter',size:11,weight:'600'},padding:4,mirror:false},border:{display:false},afterFit:function(axis){axis.width=120}}},
+      scales:{x:{min:0,max:100,grid:{color:gc},ticks:{color:tc,font:{family:'Inter',size:9},stepSize:25},border:{display:false}},y:{grid:{display:false},ticks:{color:'rgba(203,213,225,.7)',font:{family:'Inter',size:11,weight:'600'},padding:4,mirror:false},border:{display:false},afterFit:function(axis){var maxLen=0;sorted.forEach(function(s){var w=s.name.length*7;if(w>maxLen)maxLen=w});axis.width=Math.min(Math.max(maxLen,140),280)}}},
       plugins:{legend:{display:false},tooltip:{...tt,callbacks:{label:ctx=>` Score: ${ctx.raw}/100`}}}}});
 })();
 {% endif %}

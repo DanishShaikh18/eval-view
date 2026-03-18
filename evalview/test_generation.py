@@ -552,9 +552,8 @@ class AgentTestGenerator:
         queue: Deque[tuple[str, str]] = deque()
         seen: Set[str] = set()
 
-        auto_seed_prompts = self._workspace_seed_prompts()
-        prioritized_prompts = [PromptCandidate(prompt.strip(), "seed_file") for prompt in seed_prompts if prompt.strip()]
-        prioritized_prompts.extend(auto_seed_prompts)
+        # User-provided seeds (from --seed-file) are trusted and queued directly.
+        user_seed_prompts = [PromptCandidate(prompt.strip(), "seed_file") for prompt in seed_prompts if prompt.strip()]
 
         def enqueue(prompt: str, source: str) -> None:
             normalized = prompt.strip()
@@ -570,13 +569,15 @@ class AgentTestGenerator:
         for prompt in _DISCOVERY_PROMPTS[:max_discovery]:
             enqueue(prompt, "discovery")
 
-        for candidate in prioritized_prompts:
+        # Only queue user-provided seeds directly.  Workspace seeds (from
+        # existing test files, project docs, schema) are NOT queued as probes
+        # — they may come from a different agent/domain.  Instead they are
+        # passed as context to the LLM synthesis step, which decides what's
+        # relevant to the current agent's discovered capabilities.
+        for candidate in user_seed_prompts:
             enqueue(candidate.text, candidate.source)
 
-        for prompt in self._schema_prompts([candidate.text for candidate in auto_seed_prompts]):
-            enqueue(prompt, "schema")
-
-        fallback_generic_prompts = [] if prioritized_prompts else list(_GENERIC_PROMPTS)
+        fallback_generic_prompts = [] if user_seed_prompts else list(_GENERIC_PROMPTS)
         for prompt in fallback_generic_prompts:
             enqueue(prompt, "generic")
         for prompt in _SAFE_FAILURE_PROMPTS:
@@ -1295,19 +1296,31 @@ class AgentTestGenerator:
         parts.append(
             f"Generate exactly {n_prompts} prompts. Each must be a standalone "
             f"user task — something a real user would type to START a work session.\n"
-            f"Think: what does a PM/engineer open this agent to DO on a Monday morning?\n"
+            f"Think: what does a user open this agent to DO on a Monday morning?\n"
+        )
+
+        # Build example prompts dynamically from what the agent actually does.
+        # The discovery responses above tell you the agent's exact domain —
+        # generate examples that match THAT domain, not a generic one.
+        parts.append(
+            "CRITICAL: Your prompts MUST match the agent's actual domain and capabilities "
+            "as described in the AGENT RESPONSES above. Do NOT invent capabilities "
+            "the agent doesn't have. Every prompt should be something this specific "
+            "agent can realistically handle based on what it told you it does.\n"
         )
         parts.append(
-            "Examples of GOOD prompts (specific business tasks):\n"
-            "- \"What are the top pain points for Slack this week?\"\n"
-            "- \"Run a new collection from Reddit and HN\"\n"
-            "- \"Any severity 9+ issues about our competitors?\"\n"
+            "Qualities of GOOD prompts:\n"
+            "- Specific business tasks the agent told you it handles\n"
+            "- Use the same vocabulary and entities the agent mentioned\n"
+            "- Vary difficulty: some simple, some multi-step\n"
+            "- Include edge cases (missing info, unusual requests)\n"
         )
         parts.append(
-            "Examples of BAD prompts (test scaffolding, not real tasks):\n"
-            "- \"What can you help me with?\" (capability probe)\n"
-            "- \"Use the most sensible default and continue\" (system artifact)\n"
-            "- \"Show me example requests\" (meta-query)\n"
+            "Qualities of BAD prompts (avoid these):\n"
+            "- Capability probes like \"What can you help me with?\"\n"
+            "- System artifacts like \"Use the most sensible default and continue\"\n"
+            "- Meta-queries like \"Show me example requests\"\n"
+            "- Tasks outside the agent's stated domain\n"
         )
 
         return "\n".join(parts)
@@ -1376,9 +1389,9 @@ class AgentTestGenerator:
             f"1. name: A concise, descriptive name (3-8 words, no tool names)\n"
             f"2. contains: 1-2 single KEYWORDS or short entity names (1-3 words max) "
             f"that any correct response must mention regardless of exact wording. "
-            f"Think topic anchors, not full phrases. Example: for a query about "
-            f"Notion pain points, use [\"Notion\"] not [\"pain points for Notion\"]. "
-            f"For a capabilities query, use the product name. "
+            f"Think topic anchors, not full phrases. Pick a key entity or domain "
+            f"term from the query — use just the keyword, not a full phrase. "
+            f"For a capabilities query, use the product or service name. "
             f"NEVER use full sentences, long phrases, or wording that could change "
             f"on acceptable rewrites.\n\n"
             f"Test cases:\n{json.dumps(items, indent=2)}\n\n"
@@ -1423,9 +1436,10 @@ class AgentTestGenerator:
     async def _filter_incoherent_tests(self, tests: List[Any]) -> List[Any]:
         """Drop tests where the prompt intent doesn't match observed behavior.
 
-        Uses a cheap LLM call to check semantic coherence: if a prompt says
-        "run a collection" but the agent only searched, the test is misleading
-        and should be dropped rather than creating a noisy regression baseline.
+        Uses a cheap LLM call to check semantic coherence: if a prompt asks
+        for one action but the agent performed a completely different one, the
+        test is misleading and should be dropped rather than creating a noisy
+        regression baseline.
         """
         client = self._select_synthesis_client(model_override=getattr(self, "_synth_model_override", None))
         if client is None or len(tests) <= 1:
@@ -1450,9 +1464,10 @@ class AgentTestGenerator:
                 user_prompt=(
                     "For each test, respond with 'keep' if the query and tools match "
                     "semantically, or 'drop' if they clearly don't match.\n"
-                    "Example: query='Run a new collection' tools=['search_pain_history'] → drop "
-                    "(user asked to run collection, agent only searched)\n"
-                    "Example: query='Find pain points for Slack' tools=['search_pain_history'] → keep\n\n"
+                    "Example: query='Process a refund' tools=['lookup_order', 'process_refund'] → keep "
+                    "(user asked for refund, agent looked up order and processed it)\n"
+                    "Example: query='Delete my account' tools=['search_faq'] → drop "
+                    "(user asked for deletion, agent only searched FAQ)\n\n"
                     f"Tests:\n{json.dumps(items, indent=2)}\n\n"
                     'Return JSON: {"verdicts": ["keep", "drop", ...]}'
                 ),

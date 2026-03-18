@@ -482,6 +482,30 @@ def generate(
 
     # ── Show all tests for review before writing ──────────────────────────
     _print_test_summary_table(result.tests)
+
+    # Explain why some probes didn't become tests
+    skipped = result.probes_run - len(result.tests)
+    if skipped > 0:
+        reasons = []
+        no_tools = sum(1 for sig, _ in result.signatures_seen.items() if sig.startswith("direct_answer"))
+        duplicates = sum(max(0, count - 1) for count in result.signatures_seen.values())
+        if no_tools:
+            reasons.append(f"{no_tools} had no tool usage")
+        if duplicates:
+            reasons.append(f"{duplicates} duplicate behavior(s)")
+        remaining = skipped - no_tools - duplicates
+        if remaining > 0:
+            reasons.append(f"{remaining} filtered for quality")
+        reason_text = ", ".join(reasons) if reasons else "duplicates or no tool usage"
+        console.print(
+            f"\n[dim]{result.probes_run} probes ran → {len(result.tests)} tests created "
+            f"({skipped} skipped: {reason_text})[/dim]"
+        )
+        console.print(
+            "[dim]EvalView focuses on tool-using behaviors for regression testing. "
+            "Direct answers without tools are skipped.[/dim]"
+        )
+
     _print_test_yaml_inline(result.tests, generator)
 
     if result.failures:
