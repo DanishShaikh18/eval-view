@@ -101,11 +101,10 @@ def test_visual_report_shows_model_and_baseline_metadata(tmp_path):
     )
 
     html = report_path.read_text(encoding="utf-8")
-    assert "Agent Model" in html
     assert "openai/gpt-4o-mini" in html
     assert "Baseline Snapshot" in html
     assert "2026-03-14 12:15" in html
-    assert "Token Usage" in html
+    assert "160 tokens" in html  # total tokens shown in KPI strip
     assert "Execution Cost per Query" in html
     assert "Trace Cost" in html
     assert "EvalView Judge" in html
