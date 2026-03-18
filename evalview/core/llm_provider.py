@@ -250,9 +250,10 @@ class LLMClient:
 
         client = AsyncOpenAI(api_key=api_key, base_url=base_url)
 
-        # GPT-5 models require temperature=1 and max_completion_tokens
-        # Models that require max_completion_tokens instead of max_tokens
-        is_gpt5 = self.model.startswith("gpt-5") or self.model.startswith("o1") or self.model.startswith("o3") or self.model.startswith("o4")
+        # GPT-5 requires temperature=1; o-series models don't support temperature at all
+        is_gpt5 = self.model.startswith("gpt-5")
+        is_o_series = self.model.startswith("o1") or self.model.startswith("o3") or self.model.startswith("o4")
+        uses_max_completion_tokens = is_gpt5 or is_o_series
 
         params = {
             "model": self.model,
@@ -260,11 +261,15 @@ class LLMClient:
                 {"role": "system", "content": system_prompt},
                 {"role": "user", "content": user_prompt},
             ],
-            "temperature": 1 if is_gpt5 else temperature,
             "stream": True,
         }
 
         if is_gpt5:
+            params["temperature"] = 1
+        elif not is_o_series:
+            params["temperature"] = temperature
+
+        if uses_max_completion_tokens:
             params["max_completion_tokens"] = max_tokens * 5
         else:
             params["max_tokens"] = max_tokens
@@ -422,9 +427,10 @@ class LLMClient:
 
         client = AsyncOpenAI(api_key=self.api_key)
 
-        # GPT-5 models require temperature=1 and max_completion_tokens
-        # Models that require max_completion_tokens instead of max_tokens
-        is_gpt5 = self.model.startswith("gpt-5") or self.model.startswith("o1") or self.model.startswith("o3") or self.model.startswith("o4")
+        # GPT-5 requires temperature=1; o-series models don't support temperature at all
+        is_gpt5 = self.model.startswith("gpt-5")
+        is_o_series = self.model.startswith("o1") or self.model.startswith("o3") or self.model.startswith("o4")
+        uses_max_completion_tokens = is_gpt5 or is_o_series
 
         params = {
             "model": self.model,
@@ -433,10 +439,14 @@ class LLMClient:
                 {"role": "user", "content": user_prompt},
             ],
             "response_format": {"type": "json_object"},
-            "temperature": 1 if is_gpt5 else temperature,
         }
 
         if is_gpt5:
+            params["temperature"] = 1
+        elif not is_o_series:
+            params["temperature"] = temperature
+
+        if uses_max_completion_tokens:
             params["max_completion_tokens"] = max_tokens * 5
         else:
             params["max_tokens"] = max_tokens
