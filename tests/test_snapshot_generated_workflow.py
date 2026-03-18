@@ -227,7 +227,7 @@ thresholds:
     monkeypatch.setattr("evalview.commands.snapshot_cmd._load_config_if_exists", lambda: None)
     monkeypatch.setattr(
         "evalview.commands.snapshot_cmd._execute_snapshot_tests",
-        lambda test_cases, config: [_passing_result(test_cases[0].name)],
+        lambda test_cases, config, **kwargs: [_passing_result(test_cases[0].name)],
     )
     monkeypatch.setattr("evalview.commands.snapshot_cmd._cloud_push", lambda saved_names: None)
     monkeypatch.setattr(
@@ -284,7 +284,7 @@ thresholds:
     )
     monkeypatch.setattr(
         "evalview.commands.snapshot_cmd._execute_snapshot_tests",
-        lambda test_cases, config: [_passing_result(test_cases[0].name)],
+        lambda test_cases, config, **kwargs: [_passing_result(test_cases[0].name)],
     )
     monkeypatch.setattr(
         "evalview.commands.snapshot_cmd._cloud_push",
@@ -340,7 +340,7 @@ thresholds:
     )
     monkeypatch.setattr(
         "evalview.commands.snapshot_cmd._execute_snapshot_tests",
-        lambda test_cases, config: [_passing_result(test_cases[0].name)],
+        lambda test_cases, config, **kwargs: [_passing_result(test_cases[0].name)],
     )
     monkeypatch.setattr(
         "evalview.commands.snapshot_cmd._cloud_push",
@@ -399,7 +399,7 @@ thresholds:
     )
     monkeypatch.setattr(
         "evalview.commands.snapshot_cmd._execute_snapshot_tests",
-        lambda test_cases, config: [_passing_result(test_cases[0].name)],
+        lambda test_cases, config, **kwargs: [_passing_result(test_cases[0].name)],
     )
     monkeypatch.setattr(
         "evalview.commands.snapshot_cmd._cloud_push",
@@ -462,7 +462,7 @@ def test_snapshot_warns_about_mixed_endpoints_or_adapters(monkeypatch, tmp_path)
     )
     monkeypatch.setattr(
         "evalview.commands.snapshot_cmd._execute_snapshot_tests",
-        lambda loaded_cases, config: [_passing_result(loaded_cases[0].name)],
+        lambda loaded_cases, config, **kwargs: [_passing_result(loaded_cases[0].name)],
     )
     monkeypatch.setattr(
         "evalview.commands.snapshot_cmd._cloud_push",
