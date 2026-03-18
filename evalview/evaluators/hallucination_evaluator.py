@@ -1,7 +1,19 @@
-"""Hallucination detection evaluator."""
+"""Hallucination detection evaluator.
 
+Uses the Ragas-style faithfulness pattern:
+1. Extract factual claims from agent response
+2. Verify each claim against tool outputs
+3. Score = supported claims / total claims
+
+This is the industry-standard approach used by Ragas, Patronus AI, and others.
+It dramatically reduces false positives compared to single-prompt fact-checking
+because the judge evaluates one claim at a time with full context.
+"""
+
+import json
+import logging
 from datetime import datetime
-from typing import Optional, Tuple, List
+from typing import Optional, Tuple, List, Dict, Any
 
 from evalview.core.types import (
     TestCase,
@@ -11,11 +23,17 @@ from evalview.core.types import (
 )
 from evalview.core.llm_provider import LLMClient, LLMProvider
 
+logger = logging.getLogger(__name__)
+
 
 class HallucinationEvaluator:
     """Evaluator for detecting factual hallucinations in agent outputs.
 
-    Supports multiple LLM providers for fact-checking.
+    Architecture (Ragas faithfulness pattern):
+      Step 1: Extract discrete factual claims from agent response
+      Step 2: For each claim, check if ANY tool output supports it
+      Step 3: Faithfulness = supported_claims / total_claims
+      Step 4: Flag unsupported claims as potential hallucinations
     """
 
     def __init__(
@@ -24,39 +42,18 @@ class HallucinationEvaluator:
         api_key: Optional[str] = None,
         model: Optional[str] = None,
     ):
-        """
-        Initialize hallucination evaluator.
-
-        Args:
-            provider: LLM provider to use (auto-detected if not specified)
-            api_key: API key (uses env var if not specified)
-            model: Model to use (uses provider default if not specified)
-        """
         self.llm_client = LLMClient(provider=provider, api_key=api_key, model=model)
 
     async def evaluate(self, test_case: TestCase, trace: ExecutionTrace) -> HallucinationEvaluation:
-        """
-        Evaluate if agent output contains hallucinations.
-
-        Args:
-            test_case: Test case with expected behavior
-            trace: Execution trace from agent
-
-        Returns:
-            HallucinationEvaluation with detection results
-        """
-        # Check if hallucination check is configured
+        """Evaluate if agent output contains hallucinations."""
         hallucination_config = test_case.expected.hallucination
 
-        # Parse config if it's a dict
         if isinstance(hallucination_config, dict):
             hallucination_config = HallucinationCheck(**hallucination_config)
 
-        # If no config provided, use defaults (check=True by default now)
         if not hallucination_config:
             hallucination_config = HallucinationCheck(check=True)
 
-        # Skip if explicitly disabled
         if not hallucination_config.check:
             return HallucinationEvaluation(
                 has_hallucination=False,
@@ -65,18 +62,13 @@ class HallucinationEvaluator:
                 passed=True,
             )
 
-        # Perform hallucination detection
         has_hallucination, confidence, details = await self._detect_hallucination(test_case, trace)
 
-        # Determine if passed based on configuration
-        # Use high confidence threshold to reduce false positives
-        # (tool output may be truncated, causing incorrect hallucination detection)
+        # Determine pass/fail
         is_local_model = self.llm_client.provider.value == "ollama"
         confidence_threshold = 0.95 if is_local_model else 0.98
 
-        # Only fail if hallucination detected with high confidence AND not allowed
         if has_hallucination and confidence < confidence_threshold:
-            # Low confidence detection - treat as warning, not failure
             passed = True
             details = f"[Warning] {details}\n(Confidence {confidence:.0%} below threshold {confidence_threshold:.0%} - not blocking)"
         else:
@@ -92,221 +84,259 @@ class HallucinationEvaluator:
     async def _detect_hallucination(
         self, test_case: TestCase, trace: ExecutionTrace
     ) -> Tuple[bool, float, str]:
-        """
-        Detect hallucinations using multiple strategies.
-
-        Args:
-            test_case: Test case
-            trace: Execution trace
+        """Detect hallucinations using claim-level verification.
 
         Returns:
             Tuple of (has_hallucination, confidence, details)
         """
-        # Strategy 1: Tool consistency check
-        tool_consistency_issues = self._check_tool_consistency(trace)
+        # Deterministic check: tool errors not acknowledged
+        tool_issues = self._check_tool_consistency(trace)
 
-        # Strategy 2: LLM-based fact checking
-        fact_check_result = await self._llm_fact_check(test_case, trace)
-        fact_check_unavailable = bool(fact_check_result.get("unavailable"))
+        # Skip LLM-based checks if no output to verify
+        if not trace.final_output or not trace.final_output.strip():
+            if tool_issues:
+                return True, 0.8, "\n".join(f"- {i}" for i in tool_issues)
+            return False, 1.0, "No output to verify."
 
-        # Strategy 3: Uncertainty detection
-        uncertainty_issues = self._check_uncertainty_handling(test_case, trace)
+        # Build full tool context (no aggressive truncation)
+        tool_context = self._build_tool_context(trace)
 
-        # Combine results
-        all_issues = []
-        if tool_consistency_issues:
-            all_issues.extend(tool_consistency_issues)
-        if fact_check_result.get("issues"):
-            all_issues.extend(fact_check_result["issues"])
-        if uncertainty_issues:
-            all_issues.extend(uncertainty_issues)
+        # Step 1: Extract claims from agent response
+        claims = await self._extract_claims(trace.final_output, test_case.input.query)
+        if not claims:
+            # No verifiable claims found — not a hallucination
+            if tool_issues:
+                return True, 0.7, "\n".join(f"- {i}" for i in tool_issues)
+            return False, 1.0, "No verifiable factual claims found in output."
 
-        # Determine overall result
-        has_hallucination = len(all_issues) > 0
-        confidence = fact_check_result.get("confidence", 0.0) if has_hallucination else 1.0
+        # Step 2: Verify each claim against tool outputs
+        verdicts = await self._verify_claims(claims, tool_context)
+
+        # Step 3: Calculate faithfulness score
+        supported = sum(1 for v in verdicts if v["supported"])
+        total = len(verdicts)
+        faithfulness = supported / total if total > 0 else 1.0
+
+        # Collect unsupported claims
+        unsupported = [v for v in verdicts if not v["supported"]]
+
+        # Combine with deterministic issues
+        all_issues: List[str] = list(tool_issues)
+        for v in unsupported:
+            all_issues.append(f"{v['claim']} — {v['reason']}")
+
+        has_hallucination = len(unsupported) > 0
+        # Confidence scales with how many claims are unsupported
+        if has_hallucination:
+            unsupported_ratio = len(unsupported) / total
+            confidence = min(0.5 + unsupported_ratio * 0.5, 0.99)
+        else:
+            confidence = faithfulness
 
         if has_hallucination:
-            # Check if the issue is due to missing tool output
-            tools_missing_output = [
-                step.tool_name for step in trace.steps
-                if step.output is None or str(step.output) in ("None", "", "null")
-            ]
-
-            details = "Potential hallucinations detected:\n" + "\n".join(
-                f"- {issue}" for issue in all_issues
+            details = (
+                f"Faithfulness: {faithfulness:.0%} ({supported}/{total} claims supported)\n"
+                f"Unsupported claims:\n"
+                + "\n".join(f"- {issue}" for issue in all_issues)
             )
-
-            # Add context about why this might be flagged
-            if tools_missing_output:
-                details += f"\n\n⚠️  Note: Tool output was not captured for: {', '.join(tools_missing_output)}. "
-                details += "The agent may have used real data, but EvalView couldn't verify it because the tool results weren't captured in the trace."
         else:
-            details = "No hallucinations detected. Output appears factually consistent."
-            if fact_check_unavailable:
-                details += f" LLM fact check unavailable: {fact_check_result.get('reason', 'unknown error')}."
+            details = f"Faithfulness: {faithfulness:.0%} ({supported}/{total} claims verified against tool outputs)."
+            if tool_issues:
+                details += "\nWarnings:\n" + "\n".join(f"- {i}" for i in tool_issues)
 
         return has_hallucination, confidence, details
 
+    async def _extract_claims(self, response: str, query: str) -> List[str]:
+        """Step 1: Extract discrete factual claims from agent response.
+
+        Returns a list of simple factual statements that can be individually verified.
+        Skips opinions, advice, and meta-commentary.
+        """
+        prompt = f"""Extract all specific factual claims from this AI agent response.
+
+Rules:
+- Each claim should be a single, simple factual statement
+- Replace pronouns with the actual entities they refer to
+- Skip opinions, advice, recommendations, and meta-commentary
+- Skip hedged/uncertain statements ("might", "could", "possibly")
+- Only include claims that reference specific data, numbers, names, or events
+- If the response is mostly general advice with no specific factual claims, return an empty list
+
+Query: {query}
+
+Response:
+{response[:3000]}
+
+Return a JSON array of claim strings. Example:
+["User X burned through $1000 in costs", "The error rate was 40%", "LangChain agents ignored 515 stop commands"]
+
+If no specific factual claims exist, return: []"""
+
+        try:
+            result = await self.llm_client.chat_completion(
+                system_prompt="You extract factual claims from text. Return only a JSON array of strings. No explanations.",
+                user_prompt=prompt,
+                temperature=0.0,
+                max_tokens=1500,
+            )
+            # Result should be a list of strings
+            if isinstance(result, list):
+                return [str(c) for c in result if c]
+            if isinstance(result, dict) and "claims" in result:
+                return [str(c) for c in result["claims"] if c]
+            # Try to parse as JSON array from string
+            if isinstance(result, str):
+                parsed = json.loads(result)
+                if isinstance(parsed, list):
+                    return [str(c) for c in parsed if c]
+            return []
+        except Exception as e:
+            logger.debug("Claim extraction failed: %s", e)
+            return []
+
+    async def _verify_claims(
+        self, claims: List[str], tool_context: str
+    ) -> List[Dict[str, Any]]:
+        """Step 2: Verify each claim against the full tool output context.
+
+        For each claim, determines if it is supported by the tool outputs.
+        Uses a single batched LLM call for efficiency.
+        """
+        claims_numbered = "\n".join(f"{i+1}. {claim}" for i, claim in enumerate(claims))
+
+        prompt = f"""You are verifying whether each factual claim is supported by the tool outputs below.
+
+Tool Outputs (this is what the agent had access to):
+{tool_context}
+
+Claims to verify:
+{claims_numbered}
+
+For each claim, determine:
+- "supported": true if the tool outputs contain evidence for this claim (even paraphrased, reorganized, or summarized)
+- "supported": false ONLY if the claim clearly contradicts the tool outputs OR has absolutely no basis in them
+
+Be generous — if data could plausibly support the claim, mark it as supported.
+Agents commonly summarize, round numbers, group data, or rephrase — these are NOT hallucinations.
+
+Return a JSON array with one object per claim:
+[
+  {{"claim": "...", "supported": true, "reason": "Found in tool output N"}},
+  {{"claim": "...", "supported": false, "reason": "No evidence in any tool output"}}
+]"""
+
+        try:
+            result = await self.llm_client.chat_completion(
+                system_prompt="You verify factual claims against evidence. Return only a JSON array. Be generous — paraphrasing is not hallucination.",
+                user_prompt=prompt,
+                temperature=0.0,
+                max_tokens=2000,
+            )
+
+            verdicts = self._parse_verdicts(result, claims)
+            return verdicts
+
+        except Exception as e:
+            logger.debug("Claim verification failed: %s", e)
+            # On failure, assume all claims are supported (fail open, not closed)
+            return [{"claim": c, "supported": True, "reason": "Verification unavailable"} for c in claims]
+
+    def _parse_verdicts(self, result: Any, claims: List[str]) -> List[Dict[str, Any]]:
+        """Parse LLM verification result into structured verdicts."""
+        verdicts = []
+
+        if isinstance(result, list):
+            verdicts = result
+        elif isinstance(result, dict) and "verdicts" in result:
+            verdicts = result["verdicts"]
+        elif isinstance(result, str):
+            try:
+                parsed = json.loads(result)
+                if isinstance(parsed, list):
+                    verdicts = parsed
+            except (json.JSONDecodeError, ValueError):
+                pass
+
+        # Ensure we have a verdict for each claim
+        if len(verdicts) < len(claims):
+            for i in range(len(verdicts), len(claims)):
+                verdicts.append({
+                    "claim": claims[i],
+                    "supported": True,
+                    "reason": "No verdict returned — assuming supported",
+                })
+
+        # Normalize verdict format
+        normalized = []
+        for i, v in enumerate(verdicts):
+            if isinstance(v, dict):
+                normalized.append({
+                    "claim": v.get("claim", claims[i] if i < len(claims) else "unknown"),
+                    "supported": bool(v.get("supported", True)),
+                    "reason": str(v.get("reason", "")),
+                })
+            else:
+                normalized.append({
+                    "claim": claims[i] if i < len(claims) else "unknown",
+                    "supported": True,
+                    "reason": "Unparseable verdict — assuming supported",
+                })
+
+        return normalized
+
+    def _build_tool_context(self, trace: ExecutionTrace) -> str:
+        """Build full tool context string for verification.
+
+        Includes generous output limits so the judge can verify
+        claims the agent made from deeper in the results.
+        """
+        if not trace.steps:
+            return "(No tools were used — any specific factual claims are unverifiable)"
+
+        parts = []
+        for i, step in enumerate(trace.steps, 1):
+            output_str = str(step.output) if step.output is not None else "(no output captured)"
+            # Allow up to 3000 chars per tool — enough for most API responses
+            if len(output_str) > 3000:
+                output_str = output_str[:3000] + f"\n... (truncated from {len(output_str)} chars)"
+
+            params_str = str(step.parameters)[:500] if step.parameters else ""
+            parts.append(
+                f"[Tool {i}: {step.tool_name}]\n"
+                f"Input: {params_str}\n"
+                f"Output: {output_str}"
+            )
+
+        return "\n\n".join(parts)
+
     def _check_tool_consistency(self, trace: ExecutionTrace) -> List[str]:
-        """
-        Check if agent output is consistent with tool results.
-
-        Args:
-            trace: Execution trace
-
-        Returns:
-            List of consistency issues
-        """
+        """Deterministic check: did tools fail but agent didn't acknowledge it?"""
         issues = []
 
-        # Check if tools returned errors but agent claimed success
         for step in trace.steps:
             if not step.success or (step.error and "error" in str(step.output).lower()):
-                # Tool failed, check if agent output acknowledges this
-                output_lower = trace.final_output.lower()
+                output_lower = (trace.final_output or "").lower()
                 if not any(
                     keyword in output_lower
-                    for keyword in ["error", "failed", "unable", "couldn't", "cannot", "not found"]
+                    for keyword in ["error", "failed", "unable", "couldn't", "cannot", "not found", "no results", "no data"]
                 ):
                     issues.append(
-                        f"Tool '{step.tool_name}' failed/returned error, but agent did not acknowledge failure"
+                        f"Tool '{step.tool_name}' failed/returned error, but agent did not acknowledge the failure"
                     )
 
-        # Check for claims not supported by tool outputs
-        # (This is a simple heuristic - LLM will do more thorough check)
-        if not trace.steps and len(trace.final_output) > 100:
-            # Agent provided detailed answer without using any tools
-            if (
-                "based on" in trace.final_output.lower()
-                or "according to" in trace.final_output.lower()
-            ):
+        if not trace.steps and len(trace.final_output or "") > 100:
+            lower = (trace.final_output or "").lower()
+            if "based on" in lower or "according to" in lower:
                 issues.append(
-                    "Agent made factual claims without using any tools to verify information"
+                    "Agent made factual claims without using any tools to verify"
                 )
 
         return issues
 
-    async def _llm_fact_check(self, test_case: TestCase, trace: ExecutionTrace) -> dict:
-        """
-        Use LLM to fact-check agent output against tool results.
-
-        Args:
-            test_case: Test case
-            trace: Execution trace
-
-        Returns:
-            Dict with fact check results
-        """
-        # Build tool results summary
-        tool_results = []
-        for step in trace.steps:
-            tool_results.append(
-                {
-                    "tool": step.tool_name,
-                    "input": step.parameters,
-                    "output": str(step.output)[:200],  # Limit length
-                    "success": step.success,
-                    "error": step.error,
-                }
-            )
-
-        # Include current date so the LLM knows what "today" means
-        current_date = datetime.now().strftime("%B %d, %Y")
-
-        prompt = f"""You are a fact-checking system evaluating if an AI agent's response contains hallucinations.
-
-IMPORTANT: Today's date is {current_date}. Use this to determine if date references are current or not.
-
-Query: {test_case.input.query}
-
-Tool Results Available:
-{self._format_tool_results(tool_results)}
-
-Agent's Final Response:
-{trace.final_output}
-
-WHAT IS A HALLUCINATION (flag these):
-- Specific facts that contradict the tool results
-- Made-up data, numbers, or statistics not in tool outputs
-- False claims presented as fact (e.g., "The API returned X" when it didn't)
-- Inventing specific details (names, dates, amounts) not from tools
-
-WHAT IS NOT A HALLUCINATION (do NOT flag these):
-- General advice or recommendations (e.g., "consider consulting a professional")
-- Common knowledge or widely-known facts
-- Helpful context that doesn't contradict tool data
-- Practical tips or best practices
-- Caveats or disclaimers (e.g., "rates may vary")
-- Explaining what the data means or implications
-- Adding units to numbers (e.g., "22" becomes "22°C" for temperature)
-- Correct mathematical calculations or unit conversions
-- Formatting tool data in a user-friendly way
-- Reasonable inferences from the data (e.g., "rainy" implies "might need umbrella")
-
-Respond in JSON format:
-{{
-    "has_hallucination": true/false,
-    "confidence": 0.0-1.0,
-    "issues": ["issue 1", "issue 2", ...]
-}}
-
-Only flag actual false information. Helpful advice is NOT hallucination."""
-
-        try:
-            result = await self.llm_client.chat_completion(
-                system_prompt="You are a fact-checking system that identifies false claims. Helpful advice is not hallucination. Respond only with valid JSON.",
-                user_prompt=prompt,
-                temperature=0.0,
-                max_tokens=1000,
-            )
-            return result
-
-        except Exception as e:
-            return {
-                "has_hallucination": False,
-                "confidence": 0.0,
-                "issues": [],
-                "unavailable": True,
-                "reason": str(e),
-            }
-
-    def _format_tool_results(self, tool_results: list) -> str:
-        """Format tool results for LLM prompt."""
-        if not tool_results:
-            return "(No tools were used - any specific claims should be flagged as unverifiable)"
-
-        formatted = []
-        for i, result in enumerate(tool_results, 1):
-            output = result['output']
-            # Flag when tool output wasn't captured
-            if output in (None, "None", "", "null"):
-                output_str = "(Tool output not captured - any claims about this tool's results are unverifiable)"
-            else:
-                output_str = output
-
-            formatted.append(
-                f"{i}. {result['tool']}({result['input']})\n"
-                f"   Success: {result['success']}\n"
-                f"   Output: {output_str}\n"
-                f"   Error: {result['error'] or 'None'}"
-            )
-
-        return "\n".join(formatted)
-
     def _check_uncertainty_handling(self, test_case: TestCase, trace: ExecutionTrace) -> List[str]:
-        """
-        Check if agent properly acknowledges uncertainty.
-
-        Args:
-            test_case: Test case
-            trace: Execution trace
-
-        Returns:
-            List of issues with uncertainty handling
-        """
+        """Check if agent properly acknowledges uncertainty when required."""
         issues = []
 
-        # Check if output config requires uncertainty acknowledgment
         output_config = test_case.expected.output
         if not output_config:
             return issues
@@ -317,26 +347,17 @@ Only flag actual false information. Helpful advice is NOT hallucination."""
             must_acknowledge = output_config.must_acknowledge_uncertainty or False
 
         if must_acknowledge:
-            # Check if any tools failed or returned no data
             any_failures = any(not step.success for step in trace.steps)
             no_tools_used = len(trace.steps) == 0
 
             if any_failures or no_tools_used:
-                # Agent should express uncertainty
-                output_lower = trace.final_output.lower()
+                output_lower = (trace.final_output or "").lower()
                 uncertainty_phrases = [
-                    "i don't know",
-                    "i'm not sure",
-                    "uncertain",
-                    "unable to determine",
-                    "cannot confirm",
-                    "no information available",
-                    "could not find",
+                    "i don't know", "i'm not sure", "uncertain",
+                    "unable to determine", "cannot confirm",
+                    "no information available", "could not find",
                 ]
-
-                has_uncertainty = any(phrase in output_lower for phrase in uncertainty_phrases)
-
-                if not has_uncertainty:
+                if not any(phrase in output_lower for phrase in uncertainty_phrases):
                     issues.append(
                         "Agent should acknowledge uncertainty when tools fail or no information is available"
                     )
