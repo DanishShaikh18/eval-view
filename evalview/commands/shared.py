@@ -371,14 +371,28 @@ def _detect_all_agents() -> List[Dict[str, str]]:
             except Exception:
                 continue
 
-        # Fallback: if health responded but no execute path worked
+        # Fallback: if health responded but no execute path returned valid data
+        # (e.g. agent needs an API key to process requests but the endpoint exists)
         if port not in seen_ports:
+            # Try execute paths again — accept any response (even errors) as proof the path exists
+            best_path = ""
+            for path in execute_paths:
+                try:
+                    r = httpx.post(f"http://localhost:{port}{path}", json={"query": "ping"}, timeout=2.0)
+                    # Any non-404 response means this path exists
+                    if r.status_code != 404:
+                        best_path = path
+                        break
+                except Exception:
+                    continue
+
             for path in health_paths:
                 try:
                     r = httpx.get(f"http://localhost:{port}{path}", timeout=2.0)
                     if r.status_code == 200:
                         seen_ports.add(port)
-                        agents.append({"url": f"http://localhost:{port}", "port": str(port), "name": agent_name})
+                        url = f"http://localhost:{port}{best_path}" if best_path else f"http://localhost:{port}"
+                        agents.append({"url": url, "port": str(port), "name": agent_name})
                         break
                 except Exception:
                     continue
