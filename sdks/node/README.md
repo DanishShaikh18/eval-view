@@ -93,7 +93,7 @@ evalview capture --agent http://localhost:8000/invoke
 3. **`evalview check`** — replays tests, diffs against baselines, flags regressions
 4. **`evalview monitor`** — runs checks continuously with optional Slack alerts
 
-**Your data stays local.** Nothing is sent to EvalView servers.
+**Your data stays local by default.** Nothing leaves your machine unless you opt in to cloud sync via `evalview login`.
 
 ## Two Modes, One CLI
 

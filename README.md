@@ -105,7 +105,7 @@ evalview snapshot --reset           # Clear all and start fresh
 evalview replay                     # List tests, or: evalview replay "my-test"
 ```
 
-**Your data stays local.** Nothing is sent to EvalView servers.
+**Your data stays local by default.** Nothing leaves your machine unless you opt in to cloud sync via `evalview login`.
 
 ## Two Modes, One CLI
 
