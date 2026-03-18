@@ -631,259 +631,198 @@ _TEMPLATE = r"""<!doctype html>
   --blue:#2563eb;--blue-bright:#3b82f6;
   --teal:#0d9488;--teal-bright:#14b8a6;
   --cyan:#06b6d4;
-  --bg:#0a0f1e;--bg-card:rgba(15,23,42,.65);--bg-card-solid:#0f172a;
-  --border:rgba(51,65,85,.5);--border-light:rgba(71,85,105,.5);
+  --bg:#060b18;--bg-card:rgba(12,20,36,.75);
+  --border:rgba(51,65,85,.45);--border-light:rgba(71,85,105,.5);
   --text:#f1f5f9;--text-2:#94a3b8;--text-3:#64748b;--text-4:#475569;
   --r:16px;--r-sm:12px;--r-xs:8px;
   --font:'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;
   --mono:'JetBrains Mono','Fira Code','SF Mono',monospace;
 }
 html{scroll-behavior:smooth;-webkit-font-smoothing:antialiased;-moz-osx-font-smoothing:grayscale}
-body{font-family:var(--font);font-size:14px;line-height:1.6;color:var(--text);min-height:100vh;overflow-x:hidden;
-  background:var(--bg);
-}
-/* ── Background: visible blobs, not invisible ── */
-.bg-blobs{position:fixed;inset:0;pointer-events:none;z-index:0;overflow:hidden}
-.bg-blobs .b1{position:absolute;width:700px;height:700px;border-radius:50%;top:-250px;left:-100px;background:radial-gradient(circle,rgba(37,99,235,.18),transparent 70%);filter:blur(40px)}
-.bg-blobs .b2{position:absolute;width:500px;height:500px;border-radius:50%;bottom:-150px;right:-80px;background:radial-gradient(circle,rgba(16,185,129,.12),transparent 70%);filter:blur(40px)}
-.bg-blobs .b3{position:absolute;width:400px;height:400px;border-radius:50%;top:40%;left:50%;transform:translateX(-50%);background:radial-gradient(circle,rgba(6,182,212,.06),transparent 70%);filter:blur(50px)}
+body{font-family:var(--font);font-size:14px;line-height:1.6;color:var(--text);min-height:100vh;overflow-x:hidden;background:var(--bg)}
 
-/* ── Header: minimal chrome ── */
+/* ── Header ── */
 .header{
   position:sticky;top:0;z-index:200;
-  background:rgba(10,15,30,.8);
-  border-bottom:1px solid var(--border);
-  backdrop-filter:blur(20px) saturate(150%);-webkit-backdrop-filter:blur(20px) saturate(150%);
-  padding:0 40px;height:56px;display:flex;align-items:center;justify-content:space-between;
+  background:rgba(6,11,24,.85);border-bottom:1px solid var(--border);
+  backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);
+  padding:0 40px;height:52px;display:flex;align-items:center;justify-content:space-between;
 }
 .logo{display:flex;align-items:center;gap:10px}
-.logo-icon{
-  width:32px;height:32px;border-radius:8px;flex-shrink:0;
-  background:linear-gradient(135deg,var(--blue-bright),var(--teal));
-  display:flex;align-items:center;justify-content:center;font-size:14px;
-  box-shadow:0 2px 12px rgba(37,99,235,.25);
-}
-.logo-text{font-size:15px;font-weight:700;letter-spacing:-.02em;color:var(--text)}
-.logo-sub{font-size:11px;color:var(--text-3);font-weight:400}
+.logo-icon{width:28px;height:28px;border-radius:7px;flex-shrink:0;background:linear-gradient(135deg,var(--blue-bright),var(--teal));display:flex;align-items:center;justify-content:center;font-size:13px;box-shadow:0 2px 10px rgba(37,99,235,.2)}
+.logo-text{font-size:14px;font-weight:700;letter-spacing:-.02em;color:var(--text)}
+.logo-sub{font-size:10px;color:var(--text-4);font-weight:400}
 .header-right{display:flex;align-items:center;gap:6px}
 
 /* ── Badges ── */
-.badge{display:inline-flex;align-items:center;gap:4px;padding:4px 12px;border-radius:20px;font-size:11px;font-weight:600;letter-spacing:-.01em;white-space:nowrap}
-.b-green{background:rgba(16,185,129,.15);color:var(--green-bright);border:1px solid rgba(16,185,129,.3)}
-.b-red{background:rgba(239,68,68,.15);color:var(--red-bright);border:1px solid rgba(239,68,68,.3)}
-.b-yellow{background:rgba(245,158,11,.15);color:var(--yellow-bright);border:1px solid rgba(245,158,11,.3)}
-.b-blue{background:rgba(37,99,235,.15);color:var(--blue-bright);border:1px solid rgba(37,99,235,.3)}
-.b-purple{background:rgba(13,148,136,.15);color:var(--teal-bright);border:1px solid rgba(13,148,136,.3)}
+.badge{display:inline-flex;align-items:center;gap:4px;padding:3px 10px;border-radius:20px;font-size:11px;font-weight:600;white-space:nowrap}
+.b-green{background:rgba(16,185,129,.12);color:var(--green-bright);border:1px solid rgba(16,185,129,.25)}
+.b-red{background:rgba(239,68,68,.12);color:var(--red-bright);border:1px solid rgba(239,68,68,.25)}
+.b-yellow{background:rgba(245,158,11,.12);color:var(--yellow-bright);border:1px solid rgba(245,158,11,.25)}
+.b-blue{background:rgba(37,99,235,.12);color:var(--blue-bright);border:1px solid rgba(37,99,235,.25)}
+.b-purple{background:rgba(13,148,136,.12);color:var(--teal-bright);border:1px solid rgba(13,148,136,.25)}
 
 /* ── Layout ── */
-.main{max-width:1200px;margin:0 auto;padding:32px 40px 80px;position:relative;z-index:1}
+.main{max-width:1160px;margin:0 auto;padding:28px 36px 80px;position:relative;z-index:1}
 
-/* ── Tabs: full-width bar, more presence ── */
-.tabbar{
-  display:flex;gap:0;
-  background:rgba(15,23,42,.6);border:1px solid var(--border);
-  border-radius:var(--r-sm);padding:3px;margin-bottom:36px;
-  backdrop-filter:blur(12px);
-}
-.tab{
-  flex:1;text-align:center;
-  background:none;border:none;color:var(--text-3);cursor:pointer;
-  font:600 13px/1 var(--font);padding:11px 16px;border-radius:9px;
-  transition:all .15s;letter-spacing:-.01em;
-}
-.tab:hover{color:var(--text-2);background:rgba(255,255,255,.04)}
-.tab.on{color:#fff;background:rgba(37,99,235,.2);border:1px solid rgba(37,99,235,.35);box-shadow:0 1px 8px rgba(37,99,235,.15)}
+/* ── Tabs ── */
+.tabbar{display:flex;gap:0;background:var(--bg-card);border:1px solid var(--border);border-radius:var(--r-sm);padding:3px;margin-bottom:28px}
+.tab{flex:1;text-align:center;background:none;border:none;color:var(--text-4);cursor:pointer;font:600 12px/1 var(--font);padding:10px 12px;border-radius:9px;transition:all .15s}
+.tab:hover{color:var(--text-2);background:rgba(255,255,255,.03)}
+.tab.on{color:#fff;background:rgba(37,99,235,.18);border:1px solid rgba(37,99,235,.3)}
 .panel{display:none}.panel.on{display:block}
 
-/* ══════════════════════════════════════════
-   HERO SECTION — the scoreboard
-   ══════════════════════════════════════════ */
-.hero{
-  display:grid;grid-template-columns:1fr 1fr;gap:20px;
-  margin-bottom:32px;
+/* ══════════════════════════════════════════════
+   HERO ROW — gauge + stats, all above the fold
+   ══════════════════════════════════════════════ */
+.hero-row{
+  display:grid;grid-template-columns:auto 1fr;gap:0;
+  background:var(--bg-card);border:1px solid var(--border);border-radius:var(--r);
+  overflow:hidden;margin-bottom:20px;
 }
-.hero-pass{
-  background:var(--bg-card);border:1px solid var(--border);
-  border-radius:var(--r);padding:36px 40px;
-  position:relative;overflow:hidden;
+@media(max-width:800px){.hero-row{grid-template-columns:1fr}}
+/* Gauge cell */
+.gauge-cell{
+  padding:24px 32px;display:flex;flex-direction:column;align-items:center;justify-content:center;
+  position:relative;border-right:1px solid var(--border);
 }
-/* Colored accent glow behind the card */
-.hero-pass::after{
-  content:'';position:absolute;top:-40px;right:-40px;width:200px;height:200px;border-radius:50%;
-  pointer-events:none;filter:blur(50px);opacity:.5;
+.gauge-cell::before{
+  content:'';position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);
+  width:200px;height:200px;border-radius:50%;pointer-events:none;filter:blur(60px);opacity:.5;
 }
-.hero-pass.is-green::after{background:rgba(16,185,129,.2)}
-.hero-pass.is-red::after{background:rgba(239,68,68,.2)}
-.hero-pass .hero-label{font-size:11px;font-weight:700;color:var(--text-3);text-transform:uppercase;letter-spacing:.1em;margin-bottom:12px}
-.hero-pass .hero-num{font-size:72px;font-weight:900;letter-spacing:-.06em;line-height:1}
-.hero-pass .hero-num.green{color:var(--green-bright)}
-.hero-pass .hero-num.red{color:var(--red-bright)}
-.hero-pass .hero-sub{font-size:14px;color:var(--text-3);margin-top:8px;font-weight:500}
-.hero-pass .hero-ring{position:absolute;top:32px;right:36px;width:80px;height:80px}
-.hero-pass .hero-ring svg{transform:rotate(-90deg)}
-.hero-pass .hero-ring-label{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:800;color:var(--text)}
+.gauge-cell.glow-green::before{background:rgba(16,185,129,.12)}
+.gauge-cell.glow-red::before{background:rgba(239,68,68,.12)}
+.gauge-cell.glow-yellow::before{background:rgba(245,158,11,.1)}
+.gauge-wrap{position:relative;width:180px;height:180px}
+.gauge-wrap svg{display:block}
+.gauge-center{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center}
+.gauge-pct{font-size:44px;font-weight:900;letter-spacing:-.05em;line-height:1}
+.gauge-pct.green{color:var(--green-bright)}
+.gauge-pct.red{color:var(--red-bright)}
+.gauge-pct.yellow{color:var(--yellow-bright)}
+.gauge-label{font-size:9px;font-weight:700;color:var(--text-3);margin-top:3px;text-transform:uppercase;letter-spacing:.08em}
+.gauge-sub{font-size:12px;color:var(--text-3);margin-top:10px;font-weight:500;text-align:center}
+.gauge-sub b{color:var(--text);font-weight:700}
+.gauge-fill{transition:stroke-dasharray 1.2s cubic-bezier(.4,0,.2,1);stroke-dasharray:0 999}
+/* Stats grid — right side */
+.stats-grid{display:grid;grid-template-columns:1fr 1fr;grid-template-rows:1fr 1fr}
+.stats-grid .ss{padding:16px 20px;border-bottom:1px solid var(--border)}
+.stats-grid .ss:nth-child(odd){border-right:1px solid var(--border)}
+.stats-grid .ss:nth-child(n+3){border-bottom:none}
+.ss-label{font-size:10px;font-weight:700;color:var(--text-4);text-transform:uppercase;letter-spacing:.08em;margin-bottom:6px}
+.ss-num{font-size:22px;font-weight:800;letter-spacing:-.03em;line-height:1;color:var(--text)}
+.ss-num.blue{color:var(--blue-bright)}
+.ss-sub{font-size:11px;color:var(--text-4);margin-top:4px;font-weight:500;line-height:1.3}
 
-.hero-right{display:grid;grid-template-columns:1fr 1fr;gap:12px}
-.hero-stat{
-  background:var(--bg-card);border:1px solid var(--border);
-  border-radius:var(--r);padding:20px 22px;
-}
-.hero-stat .stat-label{font-size:10px;font-weight:700;color:var(--text-4);text-transform:uppercase;letter-spacing:.1em;margin-bottom:10px}
-.hero-stat .stat-num{font-size:28px;font-weight:800;letter-spacing:-.04em;line-height:1;color:var(--text)}
-.hero-stat .stat-num.blue{color:var(--blue-bright)}
-.hero-stat .stat-sub{font-size:11px;color:var(--text-4);margin-top:6px;font-weight:500;line-height:1.4}
-
-/* ── Card (for everything else) ── */
-.card{
-  background:var(--bg-card);border:1px solid var(--border);
-  border-radius:var(--r);padding:22px 24px;margin-bottom:16px;
-  position:relative;overflow:hidden;
-}
-.card-title{
-  font-size:11px;font-weight:700;color:var(--text-3);
-  text-transform:uppercase;letter-spacing:.08em;
-  margin-bottom:16px;display:flex;align-items:center;gap:8px;
-}
-.card-title::before{content:'';width:3px;height:12px;border-radius:2px;background:var(--blue-bright)}
-
-/* ── Meta row (compact) ── */
-.meta-row{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:16px}
-@media(max-width:900px){.meta-row{grid-template-columns:1fr}}
-.meta-card{
-  background:var(--bg-card);border:1px solid var(--border);
-  border-radius:var(--r-sm);padding:16px 20px;
-}
-.meta-label{font-size:10px;font-weight:700;color:var(--text-4);text-transform:uppercase;letter-spacing:.08em;margin-bottom:6px}
-.meta-value{font-size:15px;font-weight:700;color:var(--text);letter-spacing:-.01em}
-.meta-sub{font-size:12px;color:var(--text-4);margin-top:3px}
-
-/* ── Charts ── */
-.chart-row{display:grid;grid-template-columns:1fr 220px;gap:12px;margin-bottom:16px}
-@media(max-width:900px){.chart-row{grid-template-columns:1fr}}
+/* ── Card ── */
+.card{background:var(--bg-card);border:1px solid var(--border);border-radius:var(--r);padding:20px 22px;margin-bottom:14px;position:relative;overflow:hidden}
+.card-title{font-size:11px;font-weight:700;color:var(--text-3);text-transform:uppercase;letter-spacing:.06em;margin-bottom:14px;display:flex;align-items:center;gap:7px}
+.card-title::before{content:'';width:3px;height:11px;border-radius:2px;background:var(--blue-bright)}
 .chart-wrap{position:relative}
 
+/* ── Meta row ── */
+.meta-row{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:14px}
+@media(max-width:800px){.meta-row{grid-template-columns:1fr}}
+.meta-card{background:var(--bg-card);border:1px solid var(--border);border-radius:var(--r-sm);padding:14px 18px}
+.meta-label{font-size:10px;font-weight:700;color:var(--text-4);text-transform:uppercase;letter-spacing:.08em;margin-bottom:5px}
+.meta-value{font-size:14px;font-weight:700;color:var(--text)}
+.meta-sub{font-size:11px;color:var(--text-4);margin-top:3px}
+
+/* ── Chart row ── */
+.chart-row{display:grid;grid-template-columns:1fr 200px;gap:12px;margin-bottom:14px}
+@media(max-width:800px){.chart-row{grid-template-columns:1fr}}
+
 /* ── Trace items ── */
-.item{
-  background:var(--bg-card);border:1px solid var(--border);
-  border-radius:var(--r);margin-bottom:10px;overflow:hidden;
-  transition:border-color .15s;
-}
+.item{background:var(--bg-card);border:1px solid var(--border);border-radius:var(--r);margin-bottom:8px;overflow:hidden;transition:border-color .15s}
 .item:hover{border-color:var(--border-light)}
-.item-head{padding:14px 20px;display:flex;align-items:center;gap:10px;cursor:pointer;transition:background .1s}
-.item-head:hover{background:rgba(255,255,255,.02)}
+.item-head{padding:12px 18px;display:flex;align-items:center;gap:10px;cursor:pointer;transition:background .1s}
+.item-head:hover{background:rgba(255,255,255,.015)}
 .item-name{font-weight:700;font-size:14px;flex:1;letter-spacing:-.02em}
-.item-meta{display:flex;align-items:center;gap:6px;flex-shrink:0;flex-wrap:wrap}
-.meta-chip{
-  display:inline-flex;align-items:center;gap:3px;
-  padding:2px 8px;border-radius:5px;background:rgba(255,255,255,.04);
-  font-size:11px;font-weight:500;color:var(--text-3);white-space:nowrap;
-}
+.item-meta{display:flex;align-items:center;gap:5px;flex-shrink:0;flex-wrap:wrap}
+.mc{display:inline-flex;align-items:center;gap:3px;padding:2px 7px;border-radius:4px;background:rgba(255,255,255,.035);font-size:10px;font-weight:500;color:var(--text-3);white-space:nowrap}
 .chevron{color:var(--text-4);font-size:10px;transition:transform .2s;flex-shrink:0}
 details[open] .turn-chevron{transform:rotate(90deg)}
-.item-body{padding:20px;border-top:1px solid var(--border);background:rgba(0,0,0,.15)}
-.mermaid-box{background:rgba(0,0,0,.2);border:1px solid rgba(51,65,85,.4);border-radius:var(--r-sm);padding:28px 20px;overflow-x:auto;min-height:200px}
+.item-body{padding:18px;border-top:1px solid var(--border);background:rgba(0,0,0,.12)}
+.mermaid-box{background:rgba(0,0,0,.18);border:1px solid rgba(51,65,85,.35);border-radius:var(--r-sm);padding:24px 18px;overflow-x:auto;min-height:180px}
 .mermaid-box svg{min-width:560px;max-width:100%;height:auto;display:block;margin:0 auto}
 .mermaid-box .mermaid{min-width:560px}
 
 /* ── Chat turns ── */
-.chat-container{margin-top:18px;padding:16px;background:rgba(0,0,0,.12);border:1px solid rgba(51,65,85,.3);border-radius:var(--r-sm)}
-.chat-header{font-size:11px;font-weight:700;color:var(--text-3);text-transform:uppercase;letter-spacing:.06em;margin-bottom:14px;padding-bottom:10px;border-bottom:1px solid rgba(51,65,85,.3)}
-.chat-messages{display:flex;flex-direction:column;gap:4px}
-.chat-bubble{max-width:80%;padding:10px 14px;font-size:13px;line-height:1.55;border-radius:14px}
-.chat-bubble.user{align-self:flex-end;background:rgba(37,99,235,.12);border:1px solid rgba(37,99,235,.2);color:var(--text);border-bottom-right-radius:4px}
-.chat-bubble.agent{align-self:flex-start;background:rgba(255,255,255,.03);border:1px solid rgba(51,65,85,.4);color:var(--text-2);border-bottom-left-radius:4px}
-.chat-meta{display:flex;align-items:center;gap:8px;padding:5px 2px;font-size:10px;color:var(--text-4);font-weight:500}
+.chat-container{margin-top:16px;padding:14px;background:rgba(0,0,0,.1);border:1px solid rgba(51,65,85,.25);border-radius:var(--r-sm)}
+.chat-header{font-size:11px;font-weight:700;color:var(--text-3);text-transform:uppercase;letter-spacing:.06em;margin-bottom:12px;padding-bottom:8px;border-bottom:1px solid rgba(51,65,85,.25)}
+.chat-messages{display:flex;flex-direction:column;gap:3px}
+.chat-bubble{max-width:78%;padding:9px 13px;font-size:13px;line-height:1.5;border-radius:12px}
+.chat-bubble.user{align-self:flex-end;background:rgba(37,99,235,.1);border:1px solid rgba(37,99,235,.18);color:var(--text);border-bottom-right-radius:3px}
+.chat-bubble.agent{align-self:flex-start;background:rgba(255,255,255,.025);border:1px solid rgba(51,65,85,.35);color:var(--text-2);border-bottom-left-radius:3px}
+.chat-meta{display:flex;align-items:center;gap:6px;padding:4px 2px;font-size:10px;color:var(--text-4);font-weight:500}
 .chat-meta.right{justify-content:flex-end}
-.chat-tool-tag{display:inline-flex;padding:1px 7px;border-radius:4px;background:rgba(37,99,235,.08);border:1px solid rgba(37,99,235,.15);font-size:10px;font-weight:600;color:var(--blue-bright);font-family:var(--mono)}
-.chat-eval{padding:6px 10px;border-radius:8px;font-size:11px;font-weight:600;max-width:80%}
-.chat-eval.pass{align-self:flex-start;background:rgba(16,185,129,.08);border:1px solid rgba(16,185,129,.2);color:var(--green-bright)}
-.chat-eval.fail{align-self:flex-start;background:rgba(239,68,68,.08);border:1px solid rgba(239,68,68,.2);color:var(--red-bright)}
+.chat-tool-tag{display:inline-flex;padding:1px 6px;border-radius:3px;background:rgba(37,99,235,.07);border:1px solid rgba(37,99,235,.12);font-size:10px;font-weight:600;color:var(--blue-bright);font-family:var(--mono)}
+.chat-eval{padding:5px 9px;border-radius:6px;font-size:11px;font-weight:600;max-width:78%}
+.chat-eval.pass{align-self:flex-start;background:rgba(16,185,129,.07);border:1px solid rgba(16,185,129,.18);color:var(--green-bright)}
+.chat-eval.fail{align-self:flex-start;background:rgba(239,68,68,.07);border:1px solid rgba(239,68,68,.18);color:var(--red-bright)}
 
 /* ── Diffs ── */
-.diff-item{background:var(--bg-card);border:1px solid var(--border);border-radius:var(--r);margin-bottom:10px;overflow:hidden}
-.diff-head{padding:14px 20px;display:flex;align-items:center;gap:8px;flex-wrap:wrap;border-bottom:1px solid var(--border)}
+.diff-item{background:var(--bg-card);border:1px solid var(--border);border-radius:var(--r);margin-bottom:8px;overflow:hidden}
+.diff-head{padding:12px 18px;display:flex;align-items:center;gap:8px;flex-wrap:wrap;border-bottom:1px solid var(--border)}
 .diff-name{font-weight:700;font-size:14px;flex:1;letter-spacing:-.02em}
 .diff-cols{display:grid;grid-template-columns:1fr 1fr}
-.diff-col{padding:16px 20px}
+.diff-col{padding:14px 18px}
 .diff-col+.diff-col{border-left:1px solid var(--border)}
-.col-title{font-size:10px;font-weight:700;color:var(--text-4);text-transform:uppercase;letter-spacing:.06em;margin-bottom:8px}
-.tags{display:flex;flex-wrap:wrap;gap:4px;margin-bottom:8px}
-.tag{background:rgba(255,255,255,.04);border:1px solid rgba(51,65,85,.5);border-radius:5px;padding:2px 8px;font-size:11px;font-family:var(--mono);font-weight:500}
-.tag.add{border-color:rgba(16,185,129,.3);color:var(--green-bright);background:rgba(16,185,129,.06)}
-.tag.rem{border-color:rgba(239,68,68,.3);color:var(--red-bright);background:rgba(239,68,68,.06);text-decoration:line-through}
-.outbox{background:rgba(0,0,0,.2);border:1px solid rgba(51,65,85,.4);border-radius:var(--r-xs);padding:12px;font:12px/1.6 var(--mono);color:var(--text-3);white-space:pre-wrap;word-break:break-all;max-height:200px;overflow-y:auto}
-.difflines{background:rgba(0,0,0,.2);border:1px solid rgba(51,65,85,.4);border-radius:var(--r-xs);padding:10px;font:11px/1.6 var(--mono);max-height:200px;overflow-y:auto;margin-top:8px}
-.difflines .a{color:var(--green-bright);background:rgba(16,185,129,.05);display:block;padding:1px 4px;margin:0 -4px;border-radius:2px}
-.difflines .r{color:var(--red-bright);background:rgba(239,68,68,.05);display:block;padding:1px 4px;margin:0 -4px;border-radius:2px}
-.sim{display:inline-flex;align-items:center;gap:5px;font-size:11px;color:var(--text-3)}
-.sim-track{width:44px;height:4px;background:rgba(255,255,255,.06);border-radius:2px;overflow:hidden;display:inline-block;vertical-align:middle}
+.col-title{font-size:10px;font-weight:700;color:var(--text-4);text-transform:uppercase;letter-spacing:.06em;margin-bottom:7px}
+.tags{display:flex;flex-wrap:wrap;gap:3px;margin-bottom:7px}
+.tag{background:rgba(255,255,255,.035);border:1px solid rgba(51,65,85,.45);border-radius:4px;padding:2px 7px;font-size:11px;font-family:var(--mono);font-weight:500}
+.tag.add{border-color:rgba(16,185,129,.25);color:var(--green-bright);background:rgba(16,185,129,.05)}
+.tag.rem{border-color:rgba(239,68,68,.25);color:var(--red-bright);background:rgba(239,68,68,.05);text-decoration:line-through}
+.outbox{background:rgba(0,0,0,.18);border:1px solid rgba(51,65,85,.35);border-radius:var(--r-xs);padding:10px;font:12px/1.6 var(--mono);color:var(--text-3);white-space:pre-wrap;word-break:break-all;max-height:180px;overflow-y:auto}
+.difflines{background:rgba(0,0,0,.18);border:1px solid rgba(51,65,85,.35);border-radius:var(--r-xs);padding:8px;font:11px/1.6 var(--mono);max-height:180px;overflow-y:auto;margin-top:7px}
+.difflines .a{color:var(--green-bright);background:rgba(16,185,129,.04);display:block;padding:1px 4px;margin:0 -4px;border-radius:2px}
+.difflines .r{color:var(--red-bright);background:rgba(239,68,68,.04);display:block;padding:1px 4px;margin:0 -4px;border-radius:2px}
+.sim{display:inline-flex;align-items:center;gap:4px;font-size:11px;color:var(--text-3)}
+.sim-track{width:40px;height:3px;background:rgba(255,255,255,.06);border-radius:2px;overflow:hidden;display:inline-block;vertical-align:middle}
 .sim-fill{height:100%;border-radius:2px}
 .sim-fill.hi{background:var(--green)}.sim-fill.mid{background:var(--yellow)}.sim-fill.lo{background:var(--red)}
-
-/* Pipeline */
-.pipeline{display:flex;flex-direction:column;gap:6px;padding:14px 20px;border-top:1px solid var(--border)}
-.pipeline-row{display:flex;align-items:center;gap:4px;flex-wrap:wrap}
-.pipeline-label{font-size:10px;font-weight:700;color:var(--text-4);text-transform:uppercase;letter-spacing:.06em;width:64px;flex-shrink:0}
-.pipe-step{display:inline-flex;padding:4px 10px;border-radius:5px;font-size:11px;font-family:var(--mono);font-weight:600;background:rgba(255,255,255,.04);border:1px solid rgba(51,65,85,.5);color:var(--text-2);position:relative}
-.pipe-step+.pipe-step{margin-left:6px}
-.pipe-step+.pipe-step::before{content:'→';position:absolute;left:-13px;color:var(--text-4);font-size:9px;font-family:var(--font)}
-.pipe-step.match{border-color:rgba(37,99,235,.25);background:rgba(37,99,235,.05)}
-.pipe-step.added{border-color:rgba(16,185,129,.3);color:var(--green-bright);background:rgba(16,185,129,.06)}
-.pipe-step.removed{border-color:rgba(239,68,68,.3);color:var(--red-bright);background:rgba(239,68,68,.06);text-decoration:line-through}
-.traj-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:14px;padding-top:14px;border-top:1px solid var(--border)}
-.traj-col .col-title{padding-bottom:8px}
+.pipeline{display:flex;flex-direction:column;gap:5px;padding:12px 18px;border-top:1px solid var(--border)}
+.pipeline-row{display:flex;align-items:center;gap:3px;flex-wrap:wrap}
+.pipeline-label{font-size:10px;font-weight:700;color:var(--text-4);text-transform:uppercase;letter-spacing:.06em;width:60px;flex-shrink:0}
+.pipe-step{display:inline-flex;padding:3px 9px;border-radius:4px;font-size:11px;font-family:var(--mono);font-weight:600;background:rgba(255,255,255,.035);border:1px solid rgba(51,65,85,.45);color:var(--text-2);position:relative}
+.pipe-step+.pipe-step{margin-left:5px}
+.pipe-step+.pipe-step::before{content:'→';position:absolute;left:-12px;color:var(--text-4);font-size:9px;font-family:var(--font)}
+.pipe-step.match{border-color:rgba(37,99,235,.2);background:rgba(37,99,235,.04)}
+.pipe-step.added{border-color:rgba(16,185,129,.25);color:var(--green-bright);background:rgba(16,185,129,.05)}
+.pipe-step.removed{border-color:rgba(239,68,68,.25);color:var(--red-bright);background:rgba(239,68,68,.05);text-decoration:line-through}
+.traj-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:12px;padding-top:12px;border-top:1px solid var(--border)}
+.traj-col .col-title{padding-bottom:6px}
 
 /* ── Tables ── */
 .ev-table{width:100%;border-collapse:collapse;font-size:13px}
-.ev-table th{text-align:left;padding:8px 12px;color:var(--text-4);font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;border-bottom:1px solid var(--border)}
-.ev-table td{padding:10px 12px;border-bottom:1px solid rgba(51,65,85,.3);transition:background .1s}
-.ev-table tr:hover td{background:rgba(255,255,255,.015)}
+.ev-table th{text-align:left;padding:7px 10px;color:var(--text-4);font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;border-bottom:1px solid var(--border)}
+.ev-table td{padding:9px 10px;border-bottom:1px solid rgba(51,65,85,.25)}
+.ev-table tr:hover td{background:rgba(255,255,255,.012)}
 .ev-table .mono{font-family:var(--mono);font-size:12px}
 .ev-table .num{font-weight:700;font-variant-numeric:tabular-nums}
 .param-table{width:100%;border-collapse:collapse;font-size:12px}
-.param-table th{text-align:left;padding:6px 10px;color:var(--text-4);font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;border-bottom:1px solid var(--border)}
-.param-table td{padding:6px 10px;border-bottom:1px solid rgba(51,65,85,.3)}
+.param-table th{text-align:left;padding:5px 9px;color:var(--text-4);font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;border-bottom:1px solid var(--border)}
+.param-table td{padding:5px 9px;border-bottom:1px solid rgba(51,65,85,.25)}
 table td,table th{transition:background .1s}
-
-/* ── Empty ── */
-.empty{text-align:center;padding:72px 40px;color:var(--text-4)}
-.empty-icon{font-size:36px;margin-bottom:12px;display:block;opacity:.3}
-.empty code{background:rgba(255,255,255,.06);padding:2px 8px;border-radius:5px;font-family:var(--mono);font-size:12px;border:1px solid var(--border)}
-
-/* ── Scrollbar ── */
-::-webkit-scrollbar{width:4px;height:4px}::-webkit-scrollbar-track{background:transparent}::-webkit-scrollbar-thumb{background:rgba(255,255,255,.08);border-radius:4px}
-
-/* ── Entrance animation (subtle) ── */
-@keyframes fadeUp{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}
-.hero,.card,.item,.diff-item,.meta-card{animation:fadeUp .35s ease-out both}
+.empty{text-align:center;padding:64px 40px;color:var(--text-4)}
+.empty-icon{font-size:32px;margin-bottom:10px;display:block;opacity:.25}
+.empty code{background:rgba(255,255,255,.05);padding:2px 7px;border-radius:4px;font-family:var(--mono);font-size:12px;border:1px solid var(--border)}
+::-webkit-scrollbar{width:4px;height:4px}::-webkit-scrollbar-track{background:transparent}::-webkit-scrollbar-thumb{background:rgba(255,255,255,.07);border-radius:3px}
 </style>
 </head>
 <body>
 
-<div class="bg-blobs"><div class="b1"></div><div class="b2"></div><div class="b3"></div></div>
-
 <header class="header">
   <div class="logo">
     <div class="logo-icon">◈</div>
-    <div>
-      <div class="logo-text">{{ title }}</div>
-      <div class="logo-sub">{{ generated_at }}{% if notes %} · {{ notes }}{% endif %}</div>
-    </div>
+    <div><div class="logo-text">{{ title }}</div><div class="logo-sub">{{ generated_at }}{% if notes %} · {{ notes }}{% endif %}</div></div>
   </div>
   <div class="header-right">
-    {% if kpis %}
-      {% if kpis.failed == 0 %}
-        <span class="badge b-green">✓ All Passing</span>
-      {% else %}
-        <span class="badge b-red">✗ {{ kpis.failed }} Failed</span>
-      {% endif %}
-      <span class="badge b-blue">{{ kpis.total }} Tests</span>
-    {% endif %}
+    {% if kpis %}{% if kpis.failed == 0 %}<span class="badge b-green">✓ All Passing</span>{% else %}<span class="badge b-red">✗ {{ kpis.failed }} Failed</span>{% endif %}<span class="badge b-blue">{{ kpis.total }} Tests</span>{% endif %}
   </div>
 </header>
 
 <main class="main">
-
   <div class="tabbar">
     <button class="tab {% if default_tab == 'overview' %}on{% endif %}" onclick="show('overview',this)">Overview</button>
     <button class="tab {% if default_tab == 'trace' %}on{% endif %}" onclick="show('trace',this)">Execution Trace</button>
@@ -896,49 +835,52 @@ table td,table th{transition:background .1s}
   <div id="p-overview" class="panel {% if default_tab == 'overview' %}on{% endif %}">
     {% if kpis %}
 
-    <!-- HERO: The scoreboard -->
-    <div class="hero">
-      <div class="hero-pass {% if kpis.pass_rate >= 80 %}is-green{% else %}is-red{% endif %}">
-        <div class="hero-label">Pass Rate</div>
-        <div class="hero-num {% if kpis.pass_rate >= 80 %}green{% else %}red{% endif %}">{{ kpis.pass_rate }}%</div>
-        <div class="hero-sub">{{ kpis.passed }} of {{ kpis.total }} tests passing</div>
-        <div class="hero-ring">
-          <svg width="80" height="80" viewBox="0 0 80 80">
-            <circle cx="40" cy="40" r="34" fill="none" stroke="rgba(255,255,255,.06)" stroke-width="5"/>
-            <circle cx="40" cy="40" r="34" fill="none"
-              stroke="{% if kpis.pass_rate >= 80 %}var(--green-bright){% elif kpis.pass_rate >= 60 %}var(--yellow-bright){% else %}var(--red-bright){% endif %}"
-              stroke-width="5" stroke-linecap="round"
-              stroke-dasharray="{{ (kpis.pass_rate / 100 * 213.6)|round(1) }} 213.6"/>
+    <!-- HERO: Gauge + Stats in one row -->
+    <div class="hero-row">
+      <div class="gauge-cell {% if kpis.pass_rate >= 80 %}glow-green{% elif kpis.pass_rate >= 60 %}glow-yellow{% else %}glow-red{% endif %}">
+        <div class="gauge-wrap">
+          <svg width="180" height="180" viewBox="0 0 180 180">
+            <circle cx="90" cy="90" r="76" fill="none" stroke="rgba(255,255,255,.04)" stroke-width="10"/>
+            <circle class="gauge-fill" cx="90" cy="90" r="76" fill="none"
+              stroke="{% if kpis.pass_rate >= 80 %}var(--green){% elif kpis.pass_rate >= 60 %}var(--yellow){% else %}var(--red){% endif %}"
+              stroke-width="10" stroke-linecap="round"
+              data-target="{{ (kpis.pass_rate / 100 * 478)|round(0) }}"
+              style="stroke-dasharray:0 478;filter:drop-shadow(0 0 6px {% if kpis.pass_rate >= 80 %}rgba(16,185,129,.35){% elif kpis.pass_rate >= 60 %}rgba(245,158,11,.35){% else %}rgba(239,68,68,.35){% endif %})"/>
           </svg>
-          <div class="hero-ring-label">{{ kpis.passed }}/{{ kpis.total }}</div>
+          <div class="gauge-center">
+            <div class="gauge-pct {% if kpis.pass_rate >= 80 %}green{% elif kpis.pass_rate >= 60 %}yellow{% else %}red{% endif %}">{{ kpis.pass_rate }}%</div>
+            <div class="gauge-label">Pass Rate</div>
+          </div>
         </div>
+        <div class="gauge-sub"><b>{{ kpis.passed }}</b> of <b>{{ kpis.total }}</b> tests</div>
       </div>
-      <div class="hero-right">
-        <div class="hero-stat">
-          <div class="stat-label">Avg Score</div>
-          <div class="stat-num" style="color:{% if kpis.avg_score >= 80 %}var(--green-bright){% elif kpis.avg_score >= 60 %}var(--yellow-bright){% else %}var(--red-bright){% endif %}">{{ kpis.avg_score }}<span style="font-size:14px;color:var(--text-4);font-weight:500">/100</span></div>
+      <div class="stats-grid">
+        <div class="ss">
+          <div class="ss-label">Avg Score</div>
+          <div class="ss-num" style="color:{% if kpis.avg_score >= 80 %}var(--green-bright){% elif kpis.avg_score >= 60 %}var(--yellow-bright){% else %}var(--red-bright){% endif %}">{{ kpis.avg_score }}</div>
+          <div class="ss-sub">out of 100</div>
         </div>
-        <div class="hero-stat">
-          <div class="stat-label">Total Cost</div>
-          <div class="stat-num blue">${{ kpis.total_cost }}</div>
-          <div class="stat-sub">{% if kpis.total_tokens %}{{ '{:,}'.format(kpis.total_tokens) }} tokens{% elif kpis.total_cost > 0 %}reported by adapter (no token data){% else %}this run{% endif %}</div>
+        <div class="ss">
+          <div class="ss-label">Total Cost</div>
+          <div class="ss-num blue">${{ kpis.total_cost }}</div>
+          <div class="ss-sub">{% if kpis.total_tokens %}{{ '{:,}'.format(kpis.total_tokens) }} tokens (verified){% elif kpis.total_cost > 0 %}reported by adapter (no token data){% else %}this run{% endif %}</div>
         </div>
-        <div class="hero-stat">
-          <div class="stat-label">Avg Latency</div>
-          <div class="stat-num">{{ kpis.avg_latency_ms|int }}<span style="font-size:14px;color:var(--text-4);font-weight:500">ms</span></div>
-          <div class="stat-sub">per test</div>
+        <div class="ss">
+          <div class="ss-label">Avg Latency</div>
+          <div class="ss-num">{{ kpis.avg_latency_ms|int }}<span style="font-size:12px;color:var(--text-4);font-weight:500">ms</span></div>
+          <div class="ss-sub">per test</div>
         </div>
-        <div class="hero-stat">
-          <div class="stat-label">Model</div>
-          <div style="font-size:13px;font-weight:600;color:var(--text);margin-top:4px;line-height:1.4">{{ kpis.models_display }}</div>
+        <div class="ss">
+          <div class="ss-label">Model</div>
+          <div style="font-size:13px;font-weight:600;color:var(--text);margin-top:2px;line-height:1.3">{{ kpis.models_display }}</div>
           {% if kpis.total_input_tokens or kpis.total_output_tokens %}
-          <div style="margin-top:6px;font-size:11px;color:var(--text-4);font-family:var(--mono)">in {{ '{:,}'.format(kpis.total_input_tokens) }} · out {{ '{:,}'.format(kpis.total_output_tokens) }}</div>
+          <div style="margin-top:4px;font-size:10px;color:var(--text-4);font-family:var(--mono)">in {{ '{:,}'.format(kpis.total_input_tokens) }} · out {{ '{:,}'.format(kpis.total_output_tokens) }}</div>
           {% endif %}
         </div>
       </div>
     </div>
 
-    <!-- Agent Model + Token Usage -->
+    <!-- Meta cards -->
     <div class="meta-row">
       <div class="meta-card">
         <div class="meta-label">Agent Model</div>
@@ -968,7 +910,6 @@ table td,table th{transition:background .1s}
       </div>
     </div>
     {% endif %}
-
     {% if judge_usage and judge_usage.call_count %}
     <div class="meta-row">
       <div class="meta-card">
@@ -984,15 +925,15 @@ table td,table th{transition:background .1s}
     </div>
     {% endif %}
 
-    <!-- Score bars + donut -->
+    <!-- Score chart + donut -->
     <div class="chart-row">
       <div class="card">
         <div class="card-title">Score per Test</div>
-        <div class="chart-wrap" style="height:{{ [kpis.scores|length * 44 + 30, 180]|max }}px"><canvas id="bars"></canvas></div>
+        <div class="chart-wrap" style="height:{{ [kpis.scores|length * 40 + 24, 160]|max }}px"><canvas id="bars"></canvas></div>
       </div>
       <div class="card">
         <div class="card-title">Distribution</div>
-        <div class="chart-wrap" style="height:200px"><canvas id="donut"></canvas></div>
+        <div class="chart-wrap" style="height:180px"><canvas id="donut"></canvas></div>
       </div>
     </div>
 
@@ -1003,25 +944,23 @@ table td,table th{transition:background .1s}
         {% set has_tokens = traces | selectattr('tokens') | list | length > 0 %}
         <thead><tr><th>Test</th><th>Model</th><th>Trace Cost</th>{% if has_tokens %}<th>Tokens</th>{% endif %}<th>Latency</th><th>Score</th></tr></thead>
         <tbody>
-          {% for t in traces %}
-          <tr>
+          {% for t in traces %}<tr>
             <td style="font-weight:600">{{ t.name }}</td>
             <td class="mono" style="color:var(--text-4)">{{ t.model }}</td>
             <td class="mono num" style="color:{% if t.cost == '$0' %}var(--text-4){% else %}var(--blue-bright){% endif %}">{{ t.cost }}</td>
             {% if has_tokens %}<td class="mono" style="color:var(--text-3)">{{ t.tokens or '—' }}</td>{% endif %}
             <td style="color:var(--text-3)">{{ t.latency }}</td>
             <td class="num" style="color:{% if t.score >= 80 %}var(--green-bright){% elif t.score >= 60 %}var(--yellow-bright){% else %}var(--red-bright){% endif %}">{{ t.score }}</td>
-          </tr>
-          {% endfor %}
-          <tr style="background:rgba(0,0,0,.1)">
+          </tr>{% endfor %}
+          <tr style="background:rgba(0,0,0,.08)">
             <td style="font-weight:800">Total</td><td style="color:var(--text-4)">—</td>
             <td class="mono num" style="color:var(--blue-bright)">${{ kpis.total_cost }}</td>
             <td colspan="{{ 3 if has_tokens else 2 }}" style="font-size:11px;color:var(--text-4)">avg ${{ '%.6f'|format(kpis.total_cost / kpis.total) if kpis.total else '0' }} per query</td>
           </tr>
         </tbody>
       </table>
-      <div style="margin-top:12px;font-size:11px;color:var(--text-4);line-height:1.5">
-        Trace cost comes from the agent execution trace only. Mock or non-metered tools will show <code style="background:rgba(255,255,255,.05);padding:2px 7px;border-radius:4px;font-family:var(--mono);font-size:11px;border:1px solid var(--border)">$0</code> even when EvalView used a separate judge or local model during evaluation.
+      <div style="margin-top:10px;font-size:11px;color:var(--text-4);line-height:1.5">
+        Trace cost comes from the agent execution trace only. Mock or non-metered tools will show <code style="background:rgba(255,255,255,.04);padding:2px 6px;border-radius:3px;font-family:var(--mono);font-size:11px;border:1px solid var(--border)">$0</code> even when EvalView used a separate judge or local model during evaluation.
         {% if judge_usage and judge_usage.call_count %} This check also used {{ judge_usage.call_count }} EvalView judge call{% if judge_usage.call_count != 1 %}s{% endif %} ({{ judge_usage.total_tokens }} tokens).{% endif %}
       </div>
     </div>
@@ -1030,105 +969,66 @@ table td,table th{transition:background .1s}
     {% endif %}
   </div>
 
-  <!-- ═══════════ EXECUTION TRACE ═══════════ -->
+  <!-- ═══════════ TRACE ═══════════ -->
   <div id="p-trace" class="panel {% if default_tab == 'trace' %}on{% endif %}">
-    {% if traces %}
-      {% for t in traces %}
+    {% if traces %}{% for t in traces %}
       <div class="item">
         <div class="item-head" onclick="tog('tr{{ loop.index }}',this)">
           <span class="badge {% if t.passed %}b-green{% else %}b-red{% endif %}">{% if t.passed %}✓{% else %}✗{% endif %}</span>
           <span class="item-name">{{ t.name }}</span>
           <div class="item-meta">
-            <span class="meta-chip" style="color:{% if t.score >= 80 %}var(--green-bright){% elif t.score >= 60 %}var(--yellow-bright){% else %}var(--red-bright){% endif %}">{{ t.score }}/100</span>
-            {% if t.cost != "$0" %}<span class="meta-chip">💰 {{ t.cost }}</span>{% endif %}
-            <span class="meta-chip">⚡ {{ t.latency }}</span>
-            {% if t.tokens %}<span class="meta-chip">{{ t.tokens }}</span>{% endif %}
-            <span class="meta-chip">🧠 {{ t.model }}</span>
+            <span class="mc" style="color:{% if t.score >= 80 %}var(--green-bright){% elif t.score >= 60 %}var(--yellow-bright){% else %}var(--red-bright){% endif %}">{{ t.score }}/100</span>
+            {% if t.cost != "$0" %}<span class="mc">💰 {{ t.cost }}</span>{% endif %}
+            <span class="mc">⚡ {{ t.latency }}</span>
+            {% if t.tokens %}<span class="mc">{{ t.tokens }}</span>{% endif %}
+            <span class="mc">🧠 {{ t.model }}</span>
           </div>
           <span class="chevron">▾</span>
         </div>
         <div id="tr{{ loop.index }}" class="item-body" {% if not loop.first %}style="display:none"{% endif %}>
-          <div style="display:flex;flex-wrap:wrap;gap:5px;margin-bottom:14px">
+          <div style="display:flex;flex-wrap:wrap;gap:4px;margin-bottom:12px">
             <span class="badge b-blue">Model: {{ t.model }}</span>
             {% if t.input_tokens or t.output_tokens %}<span class="badge b-blue">in {{ '{:,}'.format(t.input_tokens) }} / out {{ '{:,}'.format(t.output_tokens) }} tokens</span>{% if t.cost != "$0" %}<span class="badge b-blue">{{ t.cost }}</span>{% endif %}{% endif %}
             {% if not t.input_tokens and not t.output_tokens and t.cost != "$0" %}<span class="badge b-yellow">{{ t.cost }} (adapter-reported, no token data)</span>{% endif %}
             {% if t.baseline_created and t.baseline_created != 'Unknown' %}<span class="badge b-purple">Baseline: {{ t.baseline_created }}</span>{% endif %}
             {% if t.baseline_model and t.baseline_model != 'Unknown' %}<span class="badge b-yellow">Baseline model: {{ t.baseline_model }}</span>{% endif %}
           </div>
-          {% if t.hallucination or t.safety or t.pii or t.forbidden_tools %}
-          <div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:14px">
-            {% if t.hallucination %}
-            <span class="badge {% if t.hallucination.passed %}b-green{% else %}b-red{% endif %}">
-              {% if t.hallucination.passed %}No Hallucination{% else %}Hallucination Detected ({{ (t.hallucination.confidence * 100)|int }}% confidence){% endif %}
-            </span>
-            {% endif %}
-            {% if t.safety %}
-            <span class="badge {% if t.safety.passed %}b-green{% else %}b-red{% endif %}">
-              {% if t.safety.passed %}Safe{% else %}Safety: {{ t.safety.severity }}{% if t.safety.categories %} — {{ t.safety.categories|join(', ') }}{% endif %}{% endif %}
-            </span>
-            {% endif %}
-            {% if t.pii %}
-            <span class="badge {% if t.pii.passed %}b-green{% else %}b-red{% endif %}">
-              {% if t.pii.passed %}No PII{% else %}PII Detected: {{ t.pii.types|join(', ') }}{% endif %}
-            </span>
-            {% endif %}
-            {% if t.forbidden_tools and t.forbidden_tools.violations %}
-            <span class="badge b-red">Forbidden tools: {{ t.forbidden_tools.violations|join(', ') }}</span>
-            {% endif %}
-          </div>
-          {% endif %}
           {% if t.query %}
-          <div style="background:rgba(37,99,235,.06);border:1px solid rgba(37,99,235,.15);border-radius:var(--r-xs);padding:10px 14px;margin-bottom:14px;font-size:13px;color:var(--text-2)">
-            <span style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--text-4);margin-right:8px">Query</span>{{ t.query }}
-          </div>
-          {% endif %}
-          {% if t.has_steps %}
-          <div class="mermaid-box"><div class="mermaid">{{ t.diagram }}</div></div>
-          {% else %}
-          <div style="display:flex;align-items:center;justify-content:center;padding:20px 0 8px">
-            <span style="display:inline-flex;align-items:center;gap:6px;background:rgba(255,255,255,.03);border:1px solid var(--border);border-radius:20px;padding:8px 18px;font-size:12px;color:var(--text-4)"><span style="opacity:.4">◎</span> Direct response — no tools invoked</span>
-          </div>
-          {% endif %}
+          <div style="background:rgba(37,99,235,.05);border:1px solid rgba(37,99,235,.12);border-radius:var(--r-xs);padding:9px 12px;margin-bottom:12px;font-size:13px;color:var(--text-2)">
+            <span style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--text-4);margin-right:6px">Query</span>{{ t.query }}
+          </div>{% endif %}
+          {% if t.has_steps %}<div class="mermaid-box"><div class="mermaid">{{ t.diagram }}</div></div>
+          {% else %}<div style="text-align:center;padding:18px 0;font-size:12px;color:var(--text-4)">◎ Direct response — no tools invoked</div>{% endif %}
           {% if t.turns %}
           <div class="chat-container">
             <div class="chat-header">Conversation Turns</div>
             <div class="chat-messages">
             {% for turn in t.turns %}
-              <div class="chat-meta right">
-                Turn {{ turn.index }}{% if turn.tools %} · {% for tool in turn.tools %}<span class="chat-tool-tag">{{ tool }}</span> {% endfor %}{% endif %} · ⚡ {{ turn.latency_ms|round(1) }}ms · 💰 ${{ '%.6f'|format(turn.cost) if turn.cost else '0' }}
-              </div>
+              <div class="chat-meta right">Turn {{ turn.index }}{% if turn.tools %} · {% for tool in turn.tools %}<span class="chat-tool-tag">{{ tool }}</span> {% endfor %}{% endif %} · ⚡ {{ turn.latency_ms|round(1) }}ms · 💰 ${{ '%.6f'|format(turn.cost) if turn.cost else '0' }}</div>
               <div class="chat-bubble user">{{ turn.query }}</div>
               {% if turn.output %}<div class="chat-bubble agent">{{ turn.output }}</div>{% endif %}
               {% if turn.evaluation %}
               <div class="chat-eval {% if turn.evaluation.passed %}pass{% else %}fail{% endif %}">
                 <span style="font-weight:700">{% if turn.evaluation.passed %}✅ PASS{% else %}❌ FAIL{% endif %}</span>
-                {% if turn.evaluation.tool_accuracy is not none %}<span style="margin-left:8px;opacity:.7">Tool accuracy: {{ (turn.evaluation.tool_accuracy * 100)|round(0) }}%</span>{% endif %}
-                {% if turn.evaluation.forbidden_violations %}<span style="margin-left:8px;color:var(--red-bright)">Forbidden: {{ turn.evaluation.forbidden_violations|join(', ') }}</span>{% endif %}
-                {% if turn.evaluation.contains_failed %}<span style="margin-left:8px;color:var(--red-bright)">Missing: {{ turn.evaluation.contains_failed|join(', ') }}</span>{% endif %}
-                {% if turn.evaluation.not_contains_failed %}<span style="margin-left:8px;color:var(--red-bright)">Prohibited: {{ turn.evaluation.not_contains_failed|join(', ') }}</span>{% endif %}
-              </div>
-              {% endif %}
-            {% endfor %}
-            </div>
-          </div>
-          {% endif %}
+                {% if turn.evaluation.tool_accuracy is not none %}<span style="margin-left:6px;opacity:.7">Tool accuracy: {{ (turn.evaluation.tool_accuracy * 100)|round(0) }}%</span>{% endif %}
+                {% if turn.evaluation.forbidden_violations %}<span style="margin-left:6px;color:var(--red-bright)">Forbidden: {{ turn.evaluation.forbidden_violations|join(', ') }}</span>{% endif %}
+                {% if turn.evaluation.contains_failed %}<span style="margin-left:6px;color:var(--red-bright)">Missing: {{ turn.evaluation.contains_failed|join(', ') }}</span>{% endif %}
+                {% if turn.evaluation.not_contains_failed %}<span style="margin-left:6px;color:var(--red-bright)">Prohibited: {{ turn.evaluation.not_contains_failed|join(', ') }}</span>{% endif %}
+              </div>{% endif %}
+            {% endfor %}</div>
+          </div>{% endif %}
           {% if t.output and not t.turns %}
-          <div style="background:rgba(16,185,129,.05);border:1px solid rgba(16,185,129,.12);border-radius:var(--r-xs);padding:10px 14px;margin-top:14px;font-size:13px;color:var(--text-2)">
-            <span style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--text-4);margin-right:8px">Response</span>{{ t.output[:300] }}{% if t.output|length > 300 %}...{% endif %}
-          </div>
-          {% endif %}
+          <div style="background:rgba(16,185,129,.04);border:1px solid rgba(16,185,129,.1);border-radius:var(--r-xs);padding:9px 12px;margin-top:12px;font-size:13px;color:var(--text-2)">
+            <span style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--text-4);margin-right:6px">Response</span>{{ t.output[:300] }}{% if t.output|length > 300 %}...{% endif %}
+          </div>{% endif %}
         </div>
       </div>
-      {% endfor %}
-    {% else %}
-      <div class="empty"><span class="empty-icon">🔍</span>No trace data available</div>
-    {% endif %}
+    {% endfor %}{% else %}<div class="empty"><span class="empty-icon">🔍</span>No trace data available</div>{% endif %}
   </div>
 
   <!-- ═══════════ DIFFS ═══════════ -->
   <div id="p-diffs" class="panel {% if default_tab == 'diffs' %}on{% endif %}">
-    {% if diff_rows %}
-      {% for d in diff_rows %}
+    {% if diff_rows %}{% for d in diff_rows %}
       <div class="diff-item">
         <div class="diff-head">
           {% if d.status == 'regression' %}<span class="badge b-red">⬇ Regression</span>{% elif d.status == 'tools_changed' %}<span class="badge b-yellow">⚠ Tools Changed</span>{% elif d.status == 'output_changed' %}<span class="badge b-purple">~ Output Changed</span>{% else %}<span class="badge b-green">✓ Passed</span>{% endif %}
@@ -1141,97 +1041,88 @@ table td,table th{transition:background .1s}
         <div class="pipeline">
           <div class="pipeline-row"><span class="pipeline-label">Baseline</span>{% for t in d.golden_tools %}<span class="pipe-step {% if t not in d.actual_tools %}removed{% else %}match{% endif %}">{{ t }}</span>{% endfor %}{% if not d.golden_tools %}<span style="font-size:11px;color:var(--text-4);font-style:italic">No tools</span>{% endif %}</div>
           <div class="pipeline-row"><span class="pipeline-label">Current</span>{% for t in d.actual_tools %}<span class="pipe-step {% if t not in d.golden_tools %}added{% else %}match{% endif %}">{{ t }}</span>{% endfor %}{% if not d.actual_tools %}<span style="font-size:11px;color:var(--text-4);font-style:italic">No tools</span>{% endif %}</div>
-        </div>
-        {% endif %}
+        </div>{% endif %}
         <div class="diff-cols">
           <div class="diff-col"><div class="col-title">Baseline</div><div class="tags">{% for t in d.golden_tools %}<span class="tag {% if t not in d.actual_tools %}rem{% endif %}">{{ t }}</span>{% endfor %}</div><div class="outbox">{{ d.golden_out }}</div></div>
           <div class="diff-col"><div class="col-title">Current</div><div class="tags">{% for t in d.actual_tools %}<span class="tag {% if t not in d.golden_tools %}add{% endif %}">{{ t }}</span>{% endfor %}</div><div class="outbox">{{ d.actual_out }}</div>{% if d.diff_lines %}<div class="difflines">{% for line in d.diff_lines %}{% if line.startswith('+') %}<div class="a">{{ line }}</div>{% elif line.startswith('-') %}<div class="r">{{ line }}</div>{% else %}<div>{{ line }}</div>{% endif %}{% endfor %}</div>{% endif %}</div>
         </div>
         {% if d.param_diffs %}
-        <div style="padding:14px 20px;border-top:1px solid var(--border)">
-          <div class="col-title" style="margin-bottom:10px">Parameter Changes</div>
-          <table class="param-table">
-            <thead><tr><th>Step</th><th>Tool</th><th>Parameter</th><th>Baseline</th><th>Current</th><th style="text-align:center">Match</th></tr></thead>
+        <div style="padding:12px 18px;border-top:1px solid var(--border)">
+          <div class="col-title" style="margin-bottom:8px">Parameter Changes</div>
+          <table class="param-table"><thead><tr><th>Step</th><th>Tool</th><th>Parameter</th><th>Baseline</th><th>Current</th><th style="text-align:center">Match</th></tr></thead>
             <tbody>{% for p in d.param_diffs %}<tr>
-              <td style="color:var(--text-4)">{{ p.step }}</td>
-              <td style="font-family:var(--mono);color:var(--blue-bright)">{{ p.tool }}</td>
-              <td style="font-weight:600">{{ p.param }}</td>
+              <td style="color:var(--text-4)">{{ p.step }}</td><td style="font-family:var(--mono);color:var(--blue-bright)">{{ p.tool }}</td><td style="font-weight:600">{{ p.param }}</td>
               <td style="font-family:var(--mono);font-size:11px;{% if p.type == 'missing' %}color:var(--red-bright){% else %}color:var(--text-3){% endif %}">{{ p.golden or '—' }}</td>
               <td style="font-family:var(--mono);font-size:11px;{% if p.type == 'added' %}color:var(--green-bright){% else %}color:var(--text-3){% endif %}">{{ p.actual or '—' }}</td>
               <td style="text-align:center;font-weight:600;color:{% if p.type == 'added' %}var(--green-bright){% elif p.type == 'missing' %}var(--red-bright){% elif p.similarity is not none %}{% if p.similarity >= 80 %}var(--green-bright){% elif p.similarity >= 50 %}var(--yellow-bright){% else %}var(--red-bright){% endif %}{% else %}var(--yellow-bright){% endif %}">{% if p.type == 'added' %}+new{% elif p.type == 'missing' %}-gone{% elif p.similarity is not none %}{{ p.similarity }}%{% else %}~{% endif %}</td>
-            </tr>{% endfor %}</tbody>
-          </table>
-        </div>
-        {% endif %}
+            </tr>{% endfor %}</tbody></table>
+        </div>{% endif %}
         {% if d.golden_diagram or d.actual_diagram %}
         <div class="traj-grid">
-          <div class="traj-col"><div class="col-title">Baseline Trajectory</div><div class="mermaid-box" style="min-height:140px"><div class="mermaid">{{ d.golden_diagram or "sequenceDiagram\n    Note over Agent: No trace data" }}</div></div></div>
-          <div class="traj-col"><div class="col-title">Current Trajectory</div><div class="mermaid-box" style="min-height:140px"><div class="mermaid">{{ d.actual_diagram or "sequenceDiagram\n    Note over Agent: No trace data" }}</div></div></div>
-        </div>
-        {% endif %}
+          <div class="traj-col"><div class="col-title">Baseline Trajectory</div><div class="mermaid-box" style="min-height:120px"><div class="mermaid">{{ d.golden_diagram or "sequenceDiagram\n    Note over Agent: No trace data" }}</div></div></div>
+          <div class="traj-col"><div class="col-title">Current Trajectory</div><div class="mermaid-box" style="min-height:120px"><div class="mermaid">{{ d.actual_diagram or "sequenceDiagram\n    Note over Agent: No trace data" }}</div></div></div>
+        </div>{% endif %}
       </div>
-      {% endfor %}
-    {% else %}
-      <div class="empty"><span class="empty-icon">✨</span>No diffs yet — run <code>evalview check</code> to compare against a baseline</div>
-    {% endif %}
+    {% endfor %}{% else %}<div class="empty"><span class="empty-icon">✨</span>No diffs yet — run <code>evalview check</code> to compare against a baseline</div>{% endif %}
   </div>
 
   <!-- ═══════════ TIMELINE ═══════════ -->
   <div id="p-timeline" class="panel {% if default_tab == 'timeline' %}on{% endif %}">
-    {% if timeline %}
-      <div class="card">
-        <div class="card-title">Step Latencies</div>
-        <div style="position:relative;height:{{ [timeline|length * 40 + 60, 200]|max }}px"><canvas id="tlChart"></canvas></div>
-      </div>
-    {% else %}
-      <div class="empty"><span class="empty-icon">⏱</span>No step timing data</div>
-    {% endif %}
+    {% if timeline %}<div class="card"><div class="card-title">Step Latencies</div><div style="position:relative;height:{{ [timeline|length * 38 + 50, 180]|max }}px"><canvas id="tlChart"></canvas></div></div>
+    {% else %}<div class="empty"><span class="empty-icon">⏱</span>No step timing data</div>{% endif %}
   </div>
 
   <!-- ═══════════ COMPARE ═══════════ -->
   {% if compare %}
   <div id="p-compare" class="panel">
-    <div class="card"><div class="card-title">Pass Rate Across Runs</div><div class="chart-wrap" style="height:240px"><canvas id="cmpPassRate"></canvas></div></div>
-    <div class="card"><div class="card-title">Avg Score Across Runs</div><div class="chart-wrap" style="height:240px"><canvas id="cmpScore"></canvas></div></div>
-    <div class="card">
-      <div class="card-title">Run Summary</div>
-      <table class="ev-table">
-        <thead><tr>{% for lbl in compare.labels %}<th>{{ lbl }}</th>{% endfor %}</tr></thead>
+    <div class="card"><div class="card-title">Pass Rate Across Runs</div><div class="chart-wrap" style="height:220px"><canvas id="cmpPassRate"></canvas></div></div>
+    <div class="card"><div class="card-title">Avg Score Across Runs</div><div class="chart-wrap" style="height:220px"><canvas id="cmpScore"></canvas></div></div>
+    <div class="card"><div class="card-title">Run Summary</div>
+      <table class="ev-table"><thead><tr>{% for lbl in compare.labels %}<th>{{ lbl }}</th>{% endfor %}</tr></thead>
         <tbody><tr>{% for run in compare.runs %}<td>
-          <div style="font-size:26px;font-weight:900;letter-spacing:-.04em;color:{% if run.pass_rate >= 80 %}var(--green-bright){% else %}var(--red-bright){% endif %}">{{ run.pass_rate }}%</div>
-          <div style="font-size:11px;color:var(--text-4);margin-top:3px">{{ run.passed }}/{{ run.total }} · avg {{ run.avg_score }}/100</div>
-        </td>{% endfor %}</tr></tbody>
-      </table>
+          <div style="font-size:24px;font-weight:900;letter-spacing:-.04em;color:{% if run.pass_rate >= 80 %}var(--green-bright){% else %}var(--red-bright){% endif %}">{{ run.pass_rate }}%</div>
+          <div style="font-size:11px;color:var(--text-4);margin-top:2px">{{ run.passed }}/{{ run.total }} · avg {{ run.avg_score }}/100</div>
+        </td>{% endfor %}</tr></tbody></table>
     </div>
-  </div>
-  {% endif %}
+  </div>{% endif %}
 </main>
 
 <script>
 mermaid.initialize({startOnLoad:true,theme:'dark',securityLevel:'loose',useMaxWidth:true,
-  themeVariables:{darkMode:true,background:'transparent',primaryColor:'rgba(37,99,235,.12)',primaryTextColor:'#e2e8f0',primaryBorderColor:'rgba(37,99,235,.3)',lineColor:'rgba(100,116,139,.35)',secondaryColor:'rgba(16,185,129,.08)',tertiaryColor:'rgba(6,182,212,.08)',noteBkgColor:'rgba(37,99,235,.06)',noteTextColor:'#94a3b8',noteBorderColor:'rgba(37,99,235,.2)',actorBkg:'rgba(37,99,235,.1)',actorBorder:'rgba(37,99,235,.25)',actorTextColor:'#e2e8f0',signalColor:'#64748b',signalTextColor:'#cbd5e1'},
+  themeVariables:{darkMode:true,background:'transparent',primaryColor:'rgba(37,99,235,.1)',primaryTextColor:'#e2e8f0',primaryBorderColor:'rgba(37,99,235,.25)',lineColor:'rgba(100,116,139,.3)',secondaryColor:'rgba(16,185,129,.06)',tertiaryColor:'rgba(6,182,212,.06)',noteBkgColor:'rgba(37,99,235,.05)',noteTextColor:'#94a3b8',noteBorderColor:'rgba(37,99,235,.15)',actorBkg:'rgba(37,99,235,.08)',actorBorder:'rgba(37,99,235,.2)',actorTextColor:'#e2e8f0',signalColor:'#64748b',signalTextColor:'#cbd5e1'},
   sequence:{useMaxWidth:true,width:180,wrap:false,actorFontFamily:'Inter,sans-serif',noteFontFamily:'Inter,sans-serif',messageFontFamily:'Inter,sans-serif',actorFontSize:12,messageFontSize:11,noteFontSize:10,boxTextMargin:8,mirrorActors:false,messageAlign:'center',actorMargin:30,bottomMarginAdj:4}
 });
 function show(id,btn){document.querySelectorAll('.panel').forEach(p=>p.classList.remove('on'));document.querySelectorAll('.tab').forEach(t=>t.classList.remove('on'));document.getElementById('p-'+id).classList.add('on');btn.classList.add('on')}
-function tog(id,head){const el=document.getElementById(id);const open=el.style.display!=='none';el.style.display=open?'none':'block';head.querySelector('.chevron').style.transform=open?'':'rotate(180deg)'}
+function tog(id,head){const el=document.getElementById(id);const o=el.style.display!=='none';el.style.display=o?'none':'block';head.querySelector('.chevron').style.transform=o?'':'rotate(180deg)'}
+
+/* Animate the gauge on load */
+requestAnimationFrame(()=>{setTimeout(()=>{document.querySelectorAll('.gauge-fill').forEach(c=>{const t=c.dataset.target||0;c.style.strokeDasharray=t+' 478'})},100)});
 
 {% if kpis %}
 (function(){
   const passed={{ kpis.passed }},failed={{ kpis.failed }};
   const scores={{ kpis.scores|tojson }},names={{ kpis.test_names|tojson }};
-  const tc='rgba(100,116,139,.7)',gc='rgba(255,255,255,.03)';
-  const tt={backgroundColor:'rgba(10,15,30,.95)',borderColor:'rgba(51,65,85,.6)',borderWidth:1,titleFont:{family:'Inter',weight:'700',size:12},bodyFont:{family:'Inter',size:12},padding:10,cornerRadius:8};
+  const tc='rgba(100,116,139,.6)',gc='rgba(255,255,255,.025)';
+  const tt={backgroundColor:'rgba(6,11,24,.95)',borderColor:'rgba(51,65,85,.5)',borderWidth:1,titleFont:{family:'Inter',weight:'700',size:11},bodyFont:{family:'Inter',size:11},padding:8,cornerRadius:6};
 
-  new Chart(document.getElementById('donut'),{type:'doughnut',data:{labels:['Passed','Failed'],datasets:[{data:[passed,failed],backgroundColor:['rgba(16,185,129,.65)','rgba(239,68,68,.65)'],borderColor:['rgba(16,185,129,.1)','rgba(239,68,68,.1)'],borderWidth:2,hoverOffset:6}]},options:{responsive:true,maintainAspectRatio:false,cutout:'76%',plugins:{legend:{position:'bottom',labels:{color:tc,font:{family:'Inter',size:11,weight:'500'},padding:16,boxWidth:8,boxHeight:8,usePointStyle:true,pointStyle:'circle'}},tooltip:{...tt,callbacks:{label:ctx=>` ${ctx.label}: ${ctx.raw}`}}}}});
+  new Chart(document.getElementById('donut'),{type:'doughnut',data:{labels:['Passed','Failed'],datasets:[{data:[passed,failed],backgroundColor:['rgba(16,185,129,.6)','rgba(239,68,68,.6)'],borderColor:['rgba(16,185,129,.08)','rgba(239,68,68,.08)'],borderWidth:2,hoverOffset:4}]},options:{responsive:true,maintainAspectRatio:false,cutout:'78%',plugins:{legend:{position:'bottom',labels:{color:tc,font:{family:'Inter',size:10,weight:'500'},padding:12,boxWidth:7,boxHeight:7,usePointStyle:true,pointStyle:'circle'}},tooltip:{...tt,callbacks:{label:ctx=>` ${ctx.label}: ${ctx.raw}`}}}}});
 
   const sorted=names.map((n,i)=>({name:n,score:scores[i]})).sort((a,b)=>b.score-a.score);
+  /* Warning stripes for low scores */
+  const barBg=sorted.map(s=>{
+    if(s.score>=80) return 'rgba(16,185,129,.35)';
+    if(s.score>=60) return 'rgba(245,158,11,.35)';
+    return 'rgba(239,68,68,.35)';
+  });
+  const barBorder=sorted.map(s=>{
+    if(s.score>=80) return 'rgba(16,185,129,.55)';
+    if(s.score>=60) return 'rgba(245,158,11,.55)';
+    return 'rgba(239,68,68,.55)';
+  });
   new Chart(document.getElementById('bars'),{type:'bar',
-    data:{labels:sorted.map(s=>s.name),datasets:[{label:'Score',data:sorted.map(s=>s.score),
-      backgroundColor:sorted.map(s=>s.score>=80?'rgba(16,185,129,.4)':s.score>=60?'rgba(245,158,11,.4)':'rgba(239,68,68,.4)'),
-      borderColor:sorted.map(s=>s.score>=80?'rgba(16,185,129,.6)':s.score>=60?'rgba(245,158,11,.6)':'rgba(239,68,68,.6)'),
-      borderWidth:1,borderRadius:4,borderSkipped:false,barPercentage:.6,categoryPercentage:.8}]},
+    data:{labels:sorted.map(s=>s.name),datasets:[{label:'Score',data:sorted.map(s=>s.score),backgroundColor:barBg,borderColor:barBorder,borderWidth:1,borderRadius:3,borderSkipped:false,barPercentage:.55,categoryPercentage:.8}]},
     options:{indexAxis:'y',responsive:true,maintainAspectRatio:false,
-      scales:{x:{min:0,max:100,grid:{color:gc},ticks:{color:tc,font:{family:'Inter',size:10},stepSize:25},border:{display:false}},y:{grid:{display:false},ticks:{color:'rgba(203,213,225,.8)',font:{family:'Inter',size:11,weight:'600'},padding:6},border:{display:false}}},
+      scales:{x:{min:0,max:100,grid:{color:gc},ticks:{color:tc,font:{family:'Inter',size:9},stepSize:25},border:{display:false}},y:{grid:{display:false},ticks:{color:'rgba(203,213,225,.7)',font:{family:'Inter',size:11,weight:'600'},padding:4,mirror:false},border:{display:false},afterFit:function(axis){axis.width=120}}},
       plugins:{legend:{display:false},tooltip:{...tt,callbacks:{label:ctx=>` Score: ${ctx.raw}/100`}}}}});
 })();
 {% endif %}
@@ -1241,35 +1132,35 @@ function tog(id,head){const el=document.getElementById(id);const open=el.style.d
   const tl={{ timeline|tojson }};if(!tl.length)return;
   const labels=tl.map(r=>r.label||(r.test+' \u203a '+r.tool));const vals=tl.map(r=>r.latency||0);const costs=tl.map(r=>r.cost||0);
   const maxLat=Math.max(...vals,0),maxCost=Math.max(...costs,0.000001);
-  const colors=tl.map((r,i)=>r.success?`rgba(37,99,235,${(0.3+0.4*(costs[i]/maxCost)).toFixed(2)})`:'rgba(239,68,68,.5)');
-  const borders=tl.map(r=>r.success?'rgba(37,99,235,.6)':'rgba(239,68,68,.6)');
-  const tt={backgroundColor:'rgba(10,15,30,.95)',borderColor:'rgba(51,65,85,.6)',borderWidth:1,titleFont:{family:'Inter',weight:'700'},bodyFont:{family:'Inter'},padding:10,cornerRadius:8};
-  new Chart(document.getElementById('tlChart'),{type:'bar',data:{labels,datasets:[{label:'ms',data:vals,backgroundColor:colors,borderColor:borders,borderWidth:1,borderRadius:4,borderSkipped:false,barPercentage:.6}]},options:{indexAxis:'y',responsive:true,maintainAspectRatio:false,scales:{x:{suggestedMax:maxLat>0?maxLat*1.15:1,grid:{color:'rgba(255,255,255,.03)'},ticks:{color:'rgba(100,116,139,.6)',font:{family:'Inter',size:10},callback:v=>v+'ms'},border:{display:false}},y:{grid:{display:false},ticks:{color:'rgba(203,213,225,.6)',font:{family:'Inter',size:11}},border:{display:false}}},plugins:{legend:{display:false},tooltip:{...tt,callbacks:{label:ctx=>` ${ctx.raw}ms`,afterLabel:ctx=>` Cost: $${(costs[ctx.dataIndex]||0).toFixed(6)}`,title:ctx=>ctx[0].label}}}}});
+  const colors=tl.map((r,i)=>r.success?`rgba(37,99,235,${(0.25+0.35*(costs[i]/maxCost)).toFixed(2)})`:'rgba(239,68,68,.45)');
+  const borders=tl.map(r=>r.success?'rgba(37,99,235,.5)':'rgba(239,68,68,.5)');
+  const tt={backgroundColor:'rgba(6,11,24,.95)',borderColor:'rgba(51,65,85,.5)',borderWidth:1,titleFont:{family:'Inter',weight:'700'},bodyFont:{family:'Inter'},padding:8,cornerRadius:6};
+  new Chart(document.getElementById('tlChart'),{type:'bar',data:{labels,datasets:[{label:'ms',data:vals,backgroundColor:colors,borderColor:borders,borderWidth:1,borderRadius:3,borderSkipped:false,barPercentage:.55}]},options:{indexAxis:'y',responsive:true,maintainAspectRatio:false,scales:{x:{suggestedMax:maxLat>0?maxLat*1.15:1,grid:{color:'rgba(255,255,255,.025)'},ticks:{color:'rgba(100,116,139,.5)',font:{family:'Inter',size:9},callback:v=>v+'ms'},border:{display:false}},y:{grid:{display:false},ticks:{color:'rgba(203,213,225,.5)',font:{family:'Inter',size:10}},border:{display:false}}},plugins:{legend:{display:false},tooltip:{...tt,callbacks:{label:ctx=>` ${ctx.raw}ms`,afterLabel:ctx=>` Cost: $${(costs[ctx.dataIndex]||0).toFixed(6)}`,title:ctx=>ctx[0].label}}}}});
 })();
 {% endif %}
 
 {% if compare %}
 (function(){
   const labels={{ compare.labels|tojson }};const pr={{ compare.runs|map(attribute='pass_rate')|list|tojson }};const as={{ compare.runs|map(attribute='avg_score')|list|tojson }};
-  const tc='rgba(100,116,139,.6)',gc='rgba(255,255,255,.03)';
-  const c=['rgba(37,99,235,.5)','rgba(16,185,129,.5)','rgba(239,68,68,.5)','rgba(245,158,11,.5)','rgba(6,182,212,.5)'];
-  const b=['rgba(37,99,235,.7)','rgba(16,185,129,.7)','rgba(239,68,68,.7)','rgba(245,158,11,.7)','rgba(6,182,212,.7)'];
-  const o={responsive:true,maintainAspectRatio:false,scales:{y:{grid:{color:gc},ticks:{color:tc},border:{display:false}},x:{grid:{display:false},ticks:{color:tc,font:{size:11}},border:{display:false}}},plugins:{legend:{display:false}}};
-  new Chart(document.getElementById('cmpPassRate'),{type:'bar',data:{labels,datasets:[{label:'Pass Rate %',data:pr,backgroundColor:c.slice(0,labels.length),borderColor:b.slice(0,labels.length),borderWidth:1,borderRadius:6,borderSkipped:false}]},options:{...o,scales:{...o.scales,y:{...o.scales.y,min:0,max:100}}}});
-  new Chart(document.getElementById('cmpScore'),{type:'bar',data:{labels,datasets:[{label:'Avg Score',data:as,backgroundColor:c.slice(0,labels.length),borderColor:b.slice(0,labels.length),borderWidth:1,borderRadius:6,borderSkipped:false}]},options:{...o,scales:{...o.scales,y:{...o.scales.y,min:0,max:100}}}});
+  const tc='rgba(100,116,139,.5)',gc='rgba(255,255,255,.025)';
+  const c=['rgba(37,99,235,.45)','rgba(16,185,129,.45)','rgba(239,68,68,.45)','rgba(245,158,11,.45)','rgba(6,182,212,.45)'];
+  const b=['rgba(37,99,235,.65)','rgba(16,185,129,.65)','rgba(239,68,68,.65)','rgba(245,158,11,.65)','rgba(6,182,212,.65)'];
+  const o={responsive:true,maintainAspectRatio:false,scales:{y:{grid:{color:gc},ticks:{color:tc},border:{display:false}},x:{grid:{display:false},ticks:{color:tc,font:{size:10}},border:{display:false}}},plugins:{legend:{display:false}}};
+  new Chart(document.getElementById('cmpPassRate'),{type:'bar',data:{labels,datasets:[{label:'Pass Rate %',data:pr,backgroundColor:c.slice(0,labels.length),borderColor:b.slice(0,labels.length),borderWidth:1,borderRadius:5,borderSkipped:false}]},options:{...o,scales:{...o.scales,y:{...o.scales.y,min:0,max:100}}}});
+  new Chart(document.getElementById('cmpScore'),{type:'bar',data:{labels,datasets:[{label:'Avg Score',data:as,backgroundColor:c.slice(0,labels.length),borderColor:b.slice(0,labels.length),borderWidth:1,borderRadius:5,borderSkipped:false}]},options:{...o,scales:{...o.scales,y:{...o.scales.y,min:0,max:100}}}});
 })();
 {% endif %}
 </script>
 
 <!-- Share bar -->
-<div style="position:fixed;bottom:0;left:0;right:0;z-index:100;background:rgba(10,15,30,.9);backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);border-top:1px solid var(--border);padding:10px 24px;display:flex;align-items:center;justify-content:space-between;font-family:var(--font);font-size:12px;color:var(--text-4)">
-  <span>Built with <a href="https://github.com/hidai25/eval-view" target="_blank" rel="noopener" style="color:var(--blue-bright);text-decoration:none;font-weight:600">EvalView</a> <span style="opacity:.3;margin:0 6px">|</span> Agent testing &amp; regression detection</span>
-  <span style="display:flex;align-items:center;gap:6px">
-    <a href="https://twitter.com/intent/tweet?text=Testing%20my%20AI%20agent%20with%20EvalView%20%E2%80%94%20catches%20regressions%20before%20they%20ship.%20%F0%9F%9B%A1%EF%B8%8F&url=https%3A%2F%2Fgithub.com%2Fhidai25%2Feval-view" target="_blank" rel="noopener" style="display:inline-flex;align-items:center;gap:4px;padding:5px 12px;border-radius:6px;background:rgba(29,155,240,.1);color:#1d9bf0;text-decoration:none;font-weight:600;font-size:11px;border:1px solid rgba(29,155,240,.12)" onmouseover="this.style.background='rgba(29,155,240,.18)'" onmouseout="this.style.background='rgba(29,155,240,.1)'"><svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg>Share</a>
-    <a href="https://github.com/hidai25/eval-view" target="_blank" rel="noopener" style="display:inline-flex;align-items:center;gap:4px;padding:5px 12px;border-radius:6px;background:rgba(255,255,255,.04);color:var(--text-2);text-decoration:none;font-weight:600;font-size:11px;border:1px solid var(--border)" onmouseover="this.style.background='rgba(255,255,255,.07)'" onmouseout="this.style.background='rgba(255,255,255,.04)'"><svg width="13" height="13" viewBox="0 0 16 16" fill="currentColor"><path d="M8 0c4.42 0 8 3.58 8 8a8.013 8.013 0 0 1-5.45 7.59c-.4.08-.55-.17-.55-.38 0-.27.01-1.13.01-2.2 0-.75-.25-1.23-.54-1.48 1.78-.2 3.65-.88 3.65-3.95 0-.88-.31-1.59-.82-2.15.08-.2.36-1.02-.08-2.12 0 0-.67-.22-2.2.82-.64-.18-1.32-.27-2-.27-.68 0-1.36.09-2 .27-1.53-1.03-2.2-.82-2.2-.82-.44 1.1-.16 1.92-.08 2.12-.51.56-.82 1.28-.82 2.15 0 3.06 1.86 3.75 3.64 3.95-.23.2-.44.55-.51 1.07-.46.21-1.61.55-2.33-.66-.15-.24-.6-.83-1.23-.82-.67.01-.27.38.01.53.34.19.73.9.82 1.13.16.45.68 1.31 2.69.94 0 .67.01 1.3.01 1.49 0 .21-.15.45-.55.38A7.995 7.995 0 0 1 0 8c0-4.42 3.58-8 8-8Z"/></svg>Star</a>
+<div style="position:fixed;bottom:0;left:0;right:0;z-index:100;background:rgba(6,11,24,.9);backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);border-top:1px solid var(--border);padding:8px 24px;display:flex;align-items:center;justify-content:space-between;font-family:var(--font);font-size:11px;color:var(--text-4)">
+  <span>Built with <a href="https://github.com/hidai25/eval-view" target="_blank" rel="noopener" style="color:var(--blue-bright);text-decoration:none;font-weight:600">EvalView</a> <span style="opacity:.25;margin:0 5px">|</span> Agent testing &amp; regression detection</span>
+  <span style="display:flex;align-items:center;gap:5px">
+    <a href="https://twitter.com/intent/tweet?text=Testing%20my%20AI%20agent%20with%20EvalView%20%E2%80%94%20catches%20regressions%20before%20they%20ship.%20%F0%9F%9B%A1%EF%B8%8F&url=https%3A%2F%2Fgithub.com%2Fhidai25%2Feval-view" target="_blank" rel="noopener" style="display:inline-flex;align-items:center;gap:3px;padding:4px 10px;border-radius:5px;background:rgba(29,155,240,.08);color:#1d9bf0;text-decoration:none;font-weight:600;font-size:10px;border:1px solid rgba(29,155,240,.1)"><svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg>Share</a>
+    <a href="https://github.com/hidai25/eval-view" target="_blank" rel="noopener" style="display:inline-flex;align-items:center;gap:3px;padding:4px 10px;border-radius:5px;background:rgba(255,255,255,.03);color:var(--text-2);text-decoration:none;font-weight:600;font-size:10px;border:1px solid var(--border)"><svg width="12" height="12" viewBox="0 0 16 16" fill="currentColor"><path d="M8 0c4.42 0 8 3.58 8 8a8.013 8.013 0 0 1-5.45 7.59c-.4.08-.55-.17-.55-.38 0-.27.01-1.13.01-2.2 0-.75-.25-1.23-.54-1.48 1.78-.2 3.65-.88 3.65-3.95 0-.88-.31-1.59-.82-2.15.08-.2.36-1.02-.08-2.12 0 0-.67-.22-2.2.82-.64-.18-1.32-.27-2-.27-.68 0-1.36.09-2 .27-1.53-1.03-2.2-.82-2.2-.82-.44 1.1-.16 1.92-.08 2.12-.51.56-.82 1.28-.82 2.15 0 3.06 1.86 3.75 3.64 3.95-.23.2-.44.55-.51 1.07-.46.21-1.61.55-2.33-.66-.15-.24-.6-.83-1.23-.82-.67.01-.27.38.01.53.34.19.73.9.82 1.13.16.45.68 1.31 2.69.94 0 .67.01 1.3.01 1.49 0 .21-.15.45-.55.38A7.995 7.995 0 0 1 0 8c0-4.42 3.58-8 8-8Z"/></svg>Star</a>
   </span>
 </div>
-<div style="height:44px"></div>
+<div style="height:40px"></div>
 
 </body>
 </html>"""
