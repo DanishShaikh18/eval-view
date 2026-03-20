@@ -252,8 +252,9 @@ class LLMClient:
 
         # GPT-5 requires temperature=1; o-series models don't support temperature at all
         is_gpt5 = self.model.startswith("gpt-5")
+        is_gpt4o = self.model.startswith("gpt-4o")
         is_o_series = self.model.startswith("o1") or self.model.startswith("o3") or self.model.startswith("o4")
-        uses_max_completion_tokens = is_gpt5 or is_o_series
+        uses_max_completion_tokens = is_gpt5 or is_gpt4o or is_o_series
 
         params: Dict[str, Any] = {
             "model": self.model,
@@ -429,8 +430,9 @@ class LLMClient:
 
         # GPT-5 requires temperature=1; o-series models don't support temperature at all
         is_gpt5 = self.model.startswith("gpt-5")
+        is_gpt4o = self.model.startswith("gpt-4o")
         is_o_series = self.model.startswith("o1") or self.model.startswith("o3") or self.model.startswith("o4")
-        uses_max_completion_tokens = is_gpt5 or is_o_series
+        uses_max_completion_tokens = is_gpt5 or is_gpt4o or is_o_series
 
         params: Dict[str, Any] = {
             "model": self.model,
