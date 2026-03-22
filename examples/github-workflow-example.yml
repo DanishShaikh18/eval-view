@@ -1,17 +1,21 @@
 # =============================================================================
-# QUICK START - Copy this to your repository!
+# QUICK START — Copy this file to .github/workflows/evalview.yml in your repo
 # =============================================================================
-# Catches agent regressions on every PR. Posts a comment with pass/fail + diff.
-# Also writes a job summary visible in the Actions UI.
+# Catches agent regressions on every PR. Automatically:
+#   - Runs evalview check against your golden baselines
+#   - Posts a PR comment with pass/fail, tool diffs, cost/latency alerts
+#   - Writes a job summary visible in the Actions UI
+#   - Uploads results + HTML report as artifacts
 #
-# Setup:
-#   1. Copy to .github/workflows/evalview.yml in your repo
-#   2. Add OPENAI_API_KEY to repository secrets
-#   3. Run `evalview snapshot` locally to create your baseline
-#   4. Commit .evalview/golden/ to git
+# Setup (3 steps):
+#   1. Copy this file to .github/workflows/evalview.yml
+#   2. Add OPENAI_API_KEY to repository secrets (Settings > Secrets)
+#   3. Commit your .evalview/golden/ directory to git
+#
+# That's it. Every PR now gets regression-checked.
 # =============================================================================
 
-name: EvalView Regression Check
+name: EvalView Agent Check
 
 on:
   pull_request:
@@ -19,30 +23,66 @@ on:
     branches: [main]
 
 jobs:
-  check:
+  agent-check:
     runs-on: ubuntu-latest
+    permissions:
+      pull-requests: write  # Required for PR comments
     steps:
       - uses: actions/checkout@v4
 
-      - name: Check for regressions
-        id: evalview
-        uses: hidai25/eval-view@v0.5.3
+      - name: Check for agent regressions
+        uses: hidai25/eval-view@main
         with:
           openai-api-key: ${{ secrets.OPENAI_API_KEY }}
-          fail-on: REGRESSION
 
-      - name: Upload report
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: evalview-report
-          path: evalview-report.html
-          if-no-files-found: ignore
-
-      - name: Post PR comment
-        if: github.event_name == 'pull_request' && always()
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          pip install evalview -q
-          evalview ci comment --results ${{ steps.evalview.outputs.results-file }}
+# =============================================================================
+# COMMON CONFIGURATIONS
+# =============================================================================
+#
+# Strict mode — fail on ANY change (tools, output, or regression):
+#
+#       - name: Check for agent regressions
+#         uses: hidai25/eval-view@main
+#         with:
+#           openai-api-key: ${{ secrets.OPENAI_API_KEY }}
+#           strict: 'true'
+#
+# Budget cap — limit LLM spend per CI run:
+#
+#       - name: Check for agent regressions
+#         uses: hidai25/eval-view@main
+#         with:
+#           openai-api-key: ${{ secrets.OPENAI_API_KEY }}
+#           budget: '1.00'
+#
+# Check only specific tests:
+#
+#       - name: Check for agent regressions
+#         uses: hidai25/eval-view@main
+#         with:
+#           openai-api-key: ${{ secrets.OPENAI_API_KEY }}
+#           filter: 'customer-support'
+#
+# Full evaluation mode (scores + judge, not just regression diff):
+#
+#       - name: Run full evaluation
+#         uses: hidai25/eval-view@main
+#         with:
+#           openai-api-key: ${{ secrets.OPENAI_API_KEY }}
+#           mode: 'run'
+#
+# Pin EvalView version:
+#
+#       - name: Check for agent regressions
+#         uses: hidai25/eval-view@main
+#         with:
+#           openai-api-key: ${{ secrets.OPENAI_API_KEY }}
+#           evalview-version: '0.5.3'
+#
+# Skip PR comments (CI-only, no noise):
+#
+#       - name: Check for agent regressions
+#         uses: hidai25/eval-view@main
+#         with:
+#           openai-api-key: ${{ secrets.OPENAI_API_KEY }}
+#           post-comment: 'false'

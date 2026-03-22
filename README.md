@@ -241,42 +241,34 @@ Works with **LangGraph, CrewAI, OpenAI, Claude, Mistral, HuggingFace, Ollama, MC
 
 ## CI/CD Integration
 
-Block broken agents in every PR. EvalView posts a comment with pass/fail, diffs, cost/latency spike warnings, and model change alerts — plus a job summary visible in the Actions UI.
+Block broken agents in every PR. One step — PR comments, artifacts, and job summary are automatic.
 
 ```yaml
-# .github/workflows/evalview.yml
-name: EvalView Regression Check
+# .github/workflows/evalview.yml — copy this, add your secret, done
+name: EvalView Agent Check
 on: [pull_request, push]
 
 jobs:
-  check:
+  agent-check:
     runs-on: ubuntu-latest
+    permissions:
+      pull-requests: write
     steps:
       - uses: actions/checkout@v4
 
-      - name: Check for regressions
-        id: evalview
-        uses: hidai25/eval-view@v0.5.3
+      - name: Check for agent regressions
+        uses: hidai25/eval-view@main
         with:
           openai-api-key: ${{ secrets.OPENAI_API_KEY }}
-          fail-on: REGRESSION
-
-      - name: Upload report
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: evalview-report
-          path: evalview-report.html
-          if-no-files-found: ignore
-
-      - name: Post PR comment
-        if: github.event_name == 'pull_request' && always()
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          pip install evalview -q
-          evalview ci comment --results ${{ steps.evalview.outputs.results-file }}
 ```
+
+That's it. The action automatically:
+- Runs `evalview check` against your golden baselines
+- Posts/updates a PR comment with pass/fail, tool diffs, cost/latency alerts
+- Writes a job summary visible in the Actions UI
+- Uploads results + HTML report as artifacts
+
+Common options: `strict: 'true'` | `fail-on: 'REGRESSION,TOOLS_CHANGED'` | `mode: 'run'` | `filter: 'my-test'` | `post-comment: 'false'`
 
 **What lands on your PR:**
 

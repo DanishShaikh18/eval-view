@@ -63,6 +63,18 @@ inputs:
     description: 'Generate HTML report'
     required: false
     default: 'true'
+  post-comment:
+    description: 'Automatically post results as PR comment (requires GITHUB_TOKEN)'
+    required: false
+    default: 'true'
+  upload-artifact:
+    description: 'Upload results and report as workflow artifacts'
+    required: false
+    default: 'true'
+  evalview-version:
+    description: 'EvalView version to install (e.g. "0.5.3", default: latest)'
+    required: false
+    default: ''
   python-version:
     description: 'Python version to use'
     required: false
@@ -109,7 +121,11 @@ runs:
       shell: bash
       run: |
         python -m pip install --upgrade pip
-        pip install evalview
+        if [ -n "${{ inputs.evalview-version }}" ]; then
+          pip install "evalview==${{ inputs.evalview-version }}"
+        else
+          pip install evalview
+        fi
 
     - name: Run EvalView Tests
       id: run-tests
@@ -254,10 +270,34 @@ runs:
           echo "report-file=$REPORT_PATH" >> "$GITHUB_OUTPUT"
         fi
 
-        # Job summary is written by `evalview ci comment` — not duplicated here.
-        # If you don't use `ci comment`, add a workflow step for it.
+        # Save exit code for later — comment/summary steps run first
+        echo "exit-code=$EXIT_CODE" >> "$GITHUB_OUTPUT"
 
-        # Handle exit code based on fail-on-error setting
-        if [ "$INPUT_FAIL_ON_ERROR" = "true" ] && [ $EXIT_CODE -ne 0 ]; then
-          exit $EXIT_CODE
+    - name: Post PR comment & job summary
+      if: always() && inputs.post-comment == 'true'
+      shell: bash
+      env:
+        GITHUB_TOKEN: ${{ github.token }}
+      run: |
+        # Post comment (updates existing or creates new; gracefully no-ops outside PRs)
+        evalview ci comment 2>/dev/null || true
+
+    - name: Upload artifacts
+      if: always() && inputs.upload-artifact == 'true'
+      uses: actions/upload-artifact@v4
+      with:
+        name: evalview-results
+        path: |
+          .evalview/results/*.json
+          evalview-report.html
+        retention-days: 30
+        if-no-files-found: ignore
+
+    - name: Exit with test result
+      if: always()
+      shell: bash
+      run: |
+        EXIT_CODE="${{ steps.run-tests.outputs.exit-code }}"
+        if [ "${{ inputs.fail-on-error }}" = "true" ] && [ "${EXIT_CODE:-0}" -ne 0 ]; then
+          exit ${EXIT_CODE}
         fi
