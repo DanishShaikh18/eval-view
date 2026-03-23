@@ -1,0 +1,17 @@
+name: "Calculator Test"
+description: "Division test - tests basic tool calling"
+
+input:
+  query: "What is 144 divided by 12?"
+
+expected:
+  tools:
+    - calculator
+  output:
+    contains:
+      - "12"
+
+thresholds:
+  min_score: 70
+  max_cost: 0.10
+  max_latency: 5000

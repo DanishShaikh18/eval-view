@@ -1,0 +1,22 @@
+name: "Multi-Tool Test"
+description: "Multi-tool sequence test - tests weather lookup + temperature conversion"
+
+input:
+  query: "What's the weather in London in Fahrenheit?"
+
+expected:
+  tools:
+    - get_weather
+    - calculator
+  tool_sequence:
+    - get_weather
+    - calculator
+  output:
+    contains:
+      - "London"
+      - "F"
+
+thresholds:
+  min_score: 70
+  max_cost: 0.10
+  max_latency: 5000

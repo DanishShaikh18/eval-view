@@ -1,0 +1,19 @@
+name: "my-first-test"
+description: "Test that my agent responds correctly"
+
+endpoint: http://localhost:8000
+adapter: http
+
+input:
+  query: "Hello, what can you help me with?"
+
+expected:
+  output:
+    # contains:
+    #   - "phrase your agent always says"  # uncomment and fill in
+    not_contains:
+      - "error"
+
+thresholds:
+  min_score: 70
+  max_latency: 10000

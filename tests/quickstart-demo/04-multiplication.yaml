@@ -1,0 +1,17 @@
+name: "Multiplication Test"
+description: "Tests multiplication operation"
+
+input:
+  query: "What is 25 times 4?"
+
+expected:
+  tools:
+    - calculator
+  output:
+    contains:
+      - "100"
+
+thresholds:
+  min_score: 70
+  max_cost: 0.10
+  max_latency: 5000
