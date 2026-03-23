@@ -101,6 +101,7 @@ evalview generate --from-log traffic.jsonl
 evalview snapshot list              # See all saved baselines
 evalview snapshot show "my-test"    # Inspect a baseline
 evalview snapshot delete "my-test"  # Remove a baseline
+evalview snapshot --preview         # See what would change without saving
 evalview snapshot --reset           # Clear all and start fresh
 evalview replay                     # List tests, or: evalview replay "my-test"
 ```
@@ -222,6 +223,11 @@ evalview capture --agent http://localhost:8000/invoke --multi-turn
 | **GitHub Actions job summary** | Results visible in Actions UI, not just PR comments | [Docs](docs/CI_CD.md) |
 | **Git hooks** | Pre-push regression blocking, zero CI config | [Docs](docs/CI_CD.md) |
 | **LLM judge caching** | ~80% cost reduction in statistical mode | [Docs](docs/EVALUATION_METRICS.md) |
+| **Python API** | `gate()` / `gate_async()` — programmatic regression checks | [Docs](#python-api) |
+| **Quick mode** | `gate(quick=True)` — no judge, $0, sub-second | [Docs](#python-api) |
+| **OpenClaw integration** | Regression gate skill + `gate_or_revert()` helpers | [Docs](#openclaw-integration) |
+| **Terminal dashboard** | Scorecard, sparkline trends, confidence scoring | — |
+| **Snapshot preview** | `evalview snapshot --preview` — dry-run before saving | — |
 | **Skills testing** | E2E testing for Claude Code, Codex, OpenClaw | [Docs](docs/SKILLS_TESTING.md) |
 
 ## Supported Frameworks
@@ -234,6 +240,7 @@ Works with **LangGraph, CrewAI, OpenAI, Claude, Mistral, HuggingFace, Ollama, MC
 | CrewAI | ✅ | ✅ |
 | OpenAI Assistants | ✅ | ✅ |
 | Claude Code | ✅ | ✅ |
+| OpenClaw | ✅ | ✅ |
 | Ollama | ✅ | ✅ |
 | Any HTTP API | ✅ | ✅ |
 
@@ -324,6 +331,65 @@ evalview monitor --history monitor.jsonl                 # JSONL for dashboards
 New regressions trigger Slack alerts. Recoveries send all-clear. No spam on persistent failures.
 
 [Monitor config options →](docs/CLI_REFERENCE.md)
+
+## Python API
+
+Use EvalView as a library — no CLI, no subprocess, no output parsing.
+
+```python
+from evalview import gate, DiffStatus
+
+result = gate(test_dir="tests/")
+
+result.passed          # bool — True if no regressions
+result.status          # DiffStatus.PASSED / REGRESSION / TOOLS_CHANGED
+result.summary         # .total, .unchanged, .regressions, .tools_changed
+result.diffs           # List[TestDiff] — per-test scores and tool diffs
+```
+
+**Quick mode** — skip the LLM judge for free, sub-second checks:
+
+```python
+result = gate(test_dir="tests/", quick=True)  # deterministic only, $0
+```
+
+**Async** — for agent frameworks already in an event loop:
+
+```python
+result = await gate_async(test_dir="tests/")
+```
+
+**Autonomous loops** — gate + auto-revert on regression:
+
+```python
+from evalview.openclaw import gate_or_revert
+
+make_code_change()
+if not gate_or_revert("tests/", quick=True):
+    # Change was reverted — try a different approach
+    try_alternative()
+```
+
+## OpenClaw Integration
+
+EvalView is the regression gate for [OpenClaw](https://github.com/openclaw) autonomous agents.
+
+```bash
+evalview openclaw install                    # Install skill into claw workspace
+evalview openclaw check --path tests/        # Run gate, auto-revert on regression
+```
+
+Or use the Python helpers directly in your claw:
+
+```python
+from evalview.openclaw import check_and_decide, accept_change
+
+decision = check_and_decide("tests/")
+# decision.action: "continue" | "revert" | "accept" | "review"
+
+if decision.action == "accept":
+    accept_change(decision)  # Snapshot new baselines
+```
 
 ## Pytest Plugin
 
