@@ -45,6 +45,7 @@ from evalview.commands.traces_cmd import traces
 from evalview.commands.baseline_cmd import baseline
 from evalview.commands.feedback_cmd import feedback
 from evalview.commands.openclaw_cmd import openclaw
+from evalview.commands.watch_cmd import watch
 
 
 @click.group(context_settings={"allow_interspersed_args": False})
@@ -92,6 +93,7 @@ def main(ctx: click.Context) -> None:
 
     \b
     Production:
+      watch                   Re-run checks on file change (local dev)
       monitor                 Continuous regression detection (+ Slack alerts)
 
     \b
@@ -172,6 +174,7 @@ main.add_command(baseline)
 main.add_command(monitor)
 main.add_command(feedback)
 main.add_command(openclaw)
+main.add_command(watch)
 
 
 if __name__ == "__main__":

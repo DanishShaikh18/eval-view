@@ -95,7 +95,8 @@ evalview generate --from-log traffic.jsonl
 1. **`evalview init`** — detects your running agent, creates a starter test suite
 2. **`evalview snapshot`** — runs tests, saves traces as baselines (picks judge model on first run)
 3. **`evalview check`** — replays tests, diffs against baselines, opens HTML report with results
-4. **`evalview monitor`** — runs checks continuously with optional Slack alerts
+4. **`evalview watch`** — re-runs checks on every file save during local dev
+5. **`evalview monitor`** — runs checks continuously in production with Slack alerts
 
 ```bash
 evalview snapshot list              # See all saved baselines
@@ -120,6 +121,7 @@ Snapshot known-good behavior, then detect when something drifts.
 evalview snapshot              # Capture current behavior as baseline
 evalview check                 # Compare against baseline after every change
 evalview check --judge opus    # Use a specific judge model (sonnet, gpt-5.4, deepseek...)
+evalview watch --quick         # Re-run checks on every file save ($0, sub-second)
 evalview monitor               # Continuous checks with Slack alerts
 ```
 
@@ -208,6 +210,7 @@ evalview capture --agent http://localhost:8000/invoke --multi-turn
 | **Multi-reference baselines** | Up to 5 variants for non-deterministic agents | [Docs](docs/GOLDEN_TRACES.md) |
 | **`forbidden_tools`** | Safety contracts — hard-fail on any violation | [Docs](docs/YAML_SCHEMA.md) |
 | **Semantic similarity** | Embedding-based output comparison | [Docs](docs/EVALUATION_METRICS.md) |
+| **Watch mode** | `evalview watch` — re-run checks on file save, with dashboard | [Docs](#watch-mode) |
 | **Production monitoring** | `evalview monitor` with Slack alerts and JSONL history | [Docs](#production-monitoring) |
 | **A/B comparison** | `evalview compare --v1 <url> --v2 <url>` | [Docs](docs/CLI_REFERENCE.md) |
 | **Test generation** | `evalview generate` — discovers your agent's domain, generates relevant tests | [Docs](docs/TEST_GENERATION.md) |
@@ -318,6 +321,38 @@ evalview install-hooks    # Pre-push regression blocking
 ```
 
 [Full CI/CD guide →](docs/CI_CD.md)
+
+## Watch Mode
+
+Leave it running while you code. Every file save triggers a regression check with a live dashboard.
+
+```bash
+evalview watch                          # Watch current dir, check on change
+evalview watch --quick                  # No LLM judge — $0, sub-second
+evalview watch --path src/ --path tests/
+evalview watch --test "refund-flow"     # Only check one test
+evalview watch --sound                  # Terminal bell on regression
+```
+
+```
+╭─────────────────────────── EvalView Watch ────────────────────────────╮
+│   Watching   .                                                        │
+│   Tests      all in tests/                                            │
+│   Mode       quick (no judge, $0)                                     │
+│   Debounce   2.0s                                                     │
+╰───────────────────────────────────────────────────────────────────────╯
+
+14:32:07  Change detected: src/agent.py
+
+╭──────────────────────────── Scorecard ────────────────────────────────╮
+│ ████████████████████░░░░  4 passed · 1 tools changed · 0 regressions │
+╰───────────────────────────────────────────────────────────────────────╯
+  ⚠ TOOLS_CHANGED  refund-flow  1 tool change(s)
+
+Watching for changes...
+```
+
+Uses the same `gate()` API as the Python library — no subprocess overhead.
 
 ## Production Monitoring
 
