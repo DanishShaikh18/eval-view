@@ -62,13 +62,18 @@ class GateDecision:
 
 def gate_or_revert(
     test_dir: str = "tests",
-    revert_cmd: Optional[str] = None,
+    revert_cmd: str = "git checkout -- .",
     timeout: float = 30.0,
     quick: bool = False,
 ) -> bool:
     """Run regression gate.  Revert automatically on regression.
 
     This is the simplest integration point — call it after every code change.
+
+    **Warning:** On regression, ``revert_cmd`` is executed as a shell command.
+    The default (``git checkout -- .``) discards all uncommitted changes.
+    Always commit or stash work-in-progress before entering the loop, or
+    pass a safer command like ``revert_cmd="git stash"``.
 
     Args:
         test_dir: Path to test directory.
@@ -93,10 +98,13 @@ def gate_or_revert(
         return True
 
     # Has regressions — revert
-    cmd = revert_cmd or "git checkout -- ."
-    logger.info(f"Regression detected, reverting with: {cmd}")
+    logger.warning(
+        f"Regression detected — reverting with: {revert_cmd}  "
+        f"({result.summary.regressions} regression(s), "
+        f"{result.summary.tools_changed} tool change(s))"
+    )
     try:
-        subprocess.run(cmd, shell=True, check=True, capture_output=True)
+        subprocess.run(revert_cmd, shell=True, check=True, capture_output=True)
     except subprocess.CalledProcessError as e:
         logger.warning(f"Revert command failed: {e}")
 
@@ -194,6 +202,7 @@ def accept_change(
     """Accept an intentional change by snapshotting new baselines.
 
     Call this after check_and_decide returns action="accept".
+    Uses the Python API directly — no subprocess.
 
     Args:
         decision: The GateDecision from check_and_decide.
@@ -202,17 +211,32 @@ def accept_change(
     Returns:
         Number of tests snapshotted.
     """
+    from evalview.core.loader import TestCaseLoader
+    from evalview.core.golden import GoldenStore
+    from evalview.commands.shared import _execute_snapshot_tests, _load_config_if_exists
+
+    config = _load_config_if_exists()
+    store = GoldenStore()
     count = 0
+
     for test_name in decision.changed_tests:
         try:
-            subprocess.run(
-                ["evalview", "snapshot", "--path", test_dir, "--test", test_name],
-                check=True,
-                capture_output=True,
-            )
-            count += 1
-        except subprocess.CalledProcessError as e:
+            test_cases = [
+                tc for tc in TestCaseLoader.load_from_directory(test_dir)
+                if tc.name == test_name
+            ]
+            if not test_cases:
+                logger.warning(f"Test not found: {test_name}")
+                continue
+
+            results = _execute_snapshot_tests(test_cases, config)
+            for result in results:
+                if result.passed:
+                    store.save_golden(result)
+                    count += 1
+        except Exception as e:
             logger.warning(f"Failed to snapshot {test_name}: {e}")
+
     return count
 
 
