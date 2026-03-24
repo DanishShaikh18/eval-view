@@ -1,0 +1,32 @@
+# EvalView Test Case: CrewAI Content Team
+# Tests multi-agent delegation for content creation
+
+name: "content-team"
+description: "Test content creation crew — researcher → writer → editor"
+
+adapter: crewai
+endpoint: http://localhost:8000/crew
+
+input:
+  query: "Write a blog post about AI agents in healthcare"
+  context:
+    topic: "AI agents"
+    industry: "healthcare"
+    length: "1000 words"
+
+expected:
+  tools:
+    - WebsiteSearchTool
+    - ScrapeWebsiteTool
+  output:
+    contains:
+      - "healthcare"
+      - "AI"
+    not_contains:
+      - "error"
+      - "I cannot"
+
+thresholds:
+  min_score: 70
+  max_cost: 0.50
+  max_latency: 120000

@@ -1,163 +1,227 @@
-# CrewAI Example — Testing CrewAI Multi-Agent Crews with EvalView
+# Regression Testing CrewAI Agents with EvalView
 
-> Test CrewAI multi-agent crews with EvalView — track agent collaboration, verify tool usage across agents, measure costs, and detect regressions in multi-agent workflows.
+**The problem:** You changed a prompt, swapped a model, or updated a tool — and `crewai test` says your scores look fine. But the researcher agent stopped calling the search tool, the analyst skipped the calculator, and the final report is subtly worse. Scores don't catch this. **Tool-level diffs do.**
 
-## Example Output
+EvalView snapshots your crew's full execution trace — which agent called which tool, in what order, with what parameters — and diffs it against a baseline on every change. When an agent silently changes behavior, you see exactly what shifted.
 
-![EvalView CrewAI Results](screenshot.png)
+## Quick Start (5 minutes)
 
-<details>
-<summary>Text version</summary>
-
-```
-                               📊 Evaluation Summary
-┏━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━┳━━━━━━━┳━━━━━━━━━━━┳━━━━━━━━━┳━━━━━━━━┳━━━━━━━━━━┓
-┃ Test Case           ┃ Backend  ┃ Score ┃ Status    ┃    Cost ┃ Tokens ┃  Latency ┃
-┡━━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━━╇━━━━━━━╇━━━━━━━━━━━╇━━━━━━━━━╇━━━━━━━━╇━━━━━━━━━━┩
-│ Stock Analysis      │ Crewai   │  85.0 │ ✅ PASSED │ $0.0245 │  3,420 │  45230ms │
-│ Content Team        │ Crewai   │  90.0 │ ✅ PASSED │ $0.0189 │  2,890 │  38100ms │
-└─────────────────────┴──────────┴───────┴───────────┴─────────┴────────┴──────────┘
-
-Execution Flow (4 steps)
-├── Step 1: researcher_agent ✓  [12000ms | $0.0080]
-│   └── → task: "Research AAPL stock performance"
-├── Step 2: analyst_agent ✓  [15000ms | $0.0095]
-│   └── → task: "Analyze market trends"
-├── Step 3: writer_agent ✓  [10000ms | $0.0050]
-│   └── → task: "Write analysis report"
-└── Step 4: reviewer_agent ✓  [8000ms | $0.0020]
-    └── → task: "Review and finalize"
-```
-
-</details>
-
-## Quick Start
-
-### 1. Install CrewAI
+### 1. Install
 
 ```bash
-pip install crewai crewai-tools
+pip install evalview crewai crewai-tools
 ```
 
-### 2. Clone CrewAI Examples
+### 2. Start your crew's API server
 
 ```bash
-git clone https://github.com/crewAIInc/crewAI-examples.git
-cd crewAI-examples
-```
-
-### 3. Choose an Example
-
-```bash
-# Stock Analysis crew
-cd crews/stock_analysis
-
-# Or Content Creator flow
-cd flows/content_creator_flow
-
-# Or Trip Planner
-cd crews/trip_planner
-```
-
-### 4. Set API Keys
-
-```bash
-export OPENAI_API_KEY=sk-...
-# Some crews may need additional keys (e.g., SERPER_API_KEY for search)
-```
-
-> **Note:** Some examples use Ollama (local LLM). To use OpenAI instead, edit `crew.py` and replace:
-> ```python
-> from langchain.llms import Ollama
-> llm = Ollama(model="llama3.1")
-> ```
-> with:
-> ```python
-> from langchain_openai import ChatOpenAI
-> llm = ChatOpenAI(model="gpt-4o-mini", temperature=0)
-> ```
-
-### 5. Run the Crew with API Server
-
-```bash
-# Install dependencies
-pip install -r requirements.txt
-
-# Run with FastAPI server (if supported)
+cd your-crew-project
 crewai run --serve
-
-# Or check the example's README for specific instructions
+# Server at http://localhost:8000
 ```
 
-Server typically runs at: `http://localhost:8000`
-
-### 6. Run EvalView Tests
+### 3. Point EvalView at it
 
 ```bash
-# From EvalView root
-evalview run --pattern examples/crewai/
+evalview init
+# Select "crewai" adapter, enter http://localhost:8000/crew
 ```
 
-## Available CrewAI Examples
+### 4. Capture a baseline
 
-| Example | Path | Description |
-|---------|------|-------------|
-| Stock Analysis | `crews/stock_analysis` | Multi-agent stock research |
-| Trip Planner | `crews/trip_planner` | Travel planning crew |
-| Content Creator | `flows/content_creator_flow` | Content generation flow |
-| Marketing Strategy | `crews/marketing_strategy` | Marketing research crew |
-| Job Posting | `crews/job-posting` | Job description generator |
+```bash
+evalview snapshot
+```
+
+EvalView runs your test queries, records every agent step (tool calls, parameters, outputs, cost), and saves it as a golden baseline.
+
+### 5. Make a change, catch the diff
+
+```bash
+# Edit a prompt, swap a model, update a tool...
+evalview check
+```
+
+```
+  ✓ stock-analysis           PASSED
+  ⚠ content-team             TOOLS_CHANGED
+      Step 2: analyst_agent
+      - calculator_tool(ticker="AAPL", metric="pe_ratio")
+      + calculator_tool(ticker="AAPL", metric="market_cap")
+  ✗ trip-planner             REGRESSION  -25 pts
+      researcher_agent skipped search_tool entirely
+      Score: 85 → 60  Output similarity: 42%
+```
+
+That's what `crewai test` doesn't show you.
+
+## Test Case Examples
+
+### Single crew test
+
+```yaml
+# tests/stock-analysis.yaml
+name: stock-analysis
+adapter: crewai
+endpoint: http://localhost:8000/crew
+
+input:
+  query: "Analyze Apple (AAPL) stock for investment potential"
+  context:
+    ticker: "AAPL"
+    analysis_type: "comprehensive"
+
+expected:
+  tools:
+    - ScrapeWebsiteTool
+    - WebsiteSearchTool
+    - CalculatorTool
+  output:
+    contains:
+      - "Apple"
+      - "AAPL"
+    not_contains:
+      - "error"
+
+thresholds:
+  min_score: 70
+  max_cost: 1.00
+  max_latency: 120000
+```
+
+### Multi-agent delegation test
+
+```yaml
+# tests/content-team.yaml
+name: content-team
+adapter: crewai
+endpoint: http://localhost:8000/crew
+
+input:
+  query: "Write a blog post about AI agents in healthcare"
+  context:
+    topic: "AI agents"
+    industry: "healthcare"
+    length: "1000 words"
+
+expected:
+  tools:
+    - WebsiteSearchTool
+    - ScrapeWebsiteTool
+  output:
+    contains:
+      - "healthcare"
+      - "AI"
+    not_contains:
+      - "error"
+      - "I cannot"
+
+thresholds:
+  min_score: 70
+  max_cost: 0.50
+  max_latency: 120000
+```
+
+### Safety-critical crew (forbidden tools)
+
+```yaml
+# tests/customer-support-crew.yaml
+name: customer-support-crew
+adapter: crewai
+endpoint: http://localhost:8000/crew
+
+input:
+  query: "Customer wants to cancel their account"
+
+expected:
+  tools:
+    - lookup_customer
+    - check_retention_offers
+  forbidden_tools:
+    - delete_account
+    - process_refund
+  output:
+    contains:
+      - "retention"
+      - "offer"
+
+thresholds:
+  min_score: 75
+```
+
+## CI Integration
+
+Add to your CrewAI project's GitHub Actions:
+
+```yaml
+# .github/workflows/evalview.yml
+name: EvalView Agent Check
+on: [pull_request]
+
+jobs:
+  agent-check:
+    runs-on: ubuntu-latest
+    permissions:
+      pull-requests: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Start crew server
+        run: |
+          pip install crewai crewai-tools
+          crewai run --serve &
+          sleep 10  # Wait for server startup
+
+      - name: Check for regressions
+        uses: hidai25/eval-view@main
+        with:
+          openai-api-key: ${{ secrets.OPENAI_API_KEY }}
+```
+
+Every PR gets a comment showing what changed in your crew's behavior.
+
+## Watch Mode
+
+Leave it running while you iterate on prompts:
+
+```bash
+evalview watch --quick    # Re-checks on every file save, $0, sub-second
+```
 
 ## Configuration
 
 ```yaml
 # .evalview/config.yaml
 adapter: crewai
-endpoint: http://localhost:8000
-timeout: 120  # CrewAI crews can take longer
+endpoint: http://localhost:8000/crew
+timeout: 120  # CrewAI crews can take 1-2 minutes
 ```
 
-## Writing Test Cases
+## What EvalView Catches That `crewai test` Doesn't
 
-```yaml
-name: "My Crew Test"
-adapter: crewai
-endpoint: http://localhost:8000
-
-input:
-  query: "Analyze Tesla stock for investment potential"
-  context:
-    ticker: "TSLA"
-    analysis_type: "comprehensive"
-
-expected:
-  tools:
-    - search_tool
-    - calculator_tool
-  output:
-    contains:
-      - "Tesla"
-      - "stock"
-      - "recommendation"
-
-thresholds:
-  min_score: 70
-  max_cost: 0.50
-  max_latency: 120000  # 2 minutes
-```
+| | `crewai test` | EvalView |
+|---|---|---|
+| Score per task | Yes (1-10) | Yes (0-100) |
+| Which tools each agent called | No | Yes |
+| Tool parameter changes | No | Yes |
+| Agent delegation order changes | No | Yes |
+| Output similarity vs baseline | No | Yes |
+| Cost/latency tracking | No | Yes |
+| CI/PR comments | No | Yes |
+| Forbidden tool violations | No | Yes |
 
 ## Troubleshooting
 
 **"Connection refused on port 8000"**
 - Make sure the crew is running with `--serve` flag
-- Check if the example supports API mode (not all do)
+- Some examples need a custom FastAPI wrapper — see CrewAI docs
 
 **"Crew takes too long"**
-- Increase timeout in config: `timeout: 180`
-- Multi-agent crews can take 1-2 minutes
+- Increase timeout: `timeout: 180` in config
+- Multi-agent crews with search tools can take 2+ minutes
 
 **"Missing API keys"**
-- Check the example's README for required keys
+- Check the crew's README for required keys
 - Common: `OPENAI_API_KEY`, `SERPER_API_KEY`
 
 ## Links
@@ -165,4 +229,4 @@ thresholds:
 - [CrewAI Docs](https://docs.crewai.com/)
 - [CrewAI GitHub](https://github.com/crewAIInc/crewAI)
 - [CrewAI Examples](https://github.com/crewAIInc/crewAI-examples)
-- [EvalView Docs](../../docs/)
+- [EvalView Framework Support](../../docs/FRAMEWORK_SUPPORT.md)
