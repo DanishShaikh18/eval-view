@@ -972,7 +972,7 @@ table td,table th{transition:background .1s}
       </div>
     </div>
     {% if dashboard %}
-    <!-- Health Gauge + Trend Sparklines -->
+    <!-- Health Gauge + Trend Sparklines (or Score Per Test if no trends) -->
     <div class="meta-row">
       <div class="card" style="margin-bottom:0">
         <div class="card-title">Health Gauge</div>
@@ -996,6 +996,12 @@ table td,table th{transition:background .1s}
       <div class="card" style="margin-bottom:0">
         <div class="card-title">Score Trends</div>
         <div style="height:{{ [dashboard.test_sparklines|length * 28 + 50, 100]|max }}px;position:relative"><canvas id="trendChart"></canvas></div>
+      </div>
+      {% else %}
+      <!-- No trend data yet — show Score Per Test next to Health Gauge -->
+      <div class="card" style="margin-bottom:0">
+        <div class="card-title">Score per Test</div>
+        <div class="chart-wrap" style="height:{{ [kpis.scores|length * 40 + 24, 120]|max }}px"><canvas id="bars"></canvas></div>
       </div>
       {% endif %}
     </div>
@@ -1029,11 +1035,13 @@ table td,table th{transition:background .1s}
     </div>
     {% endif %}
 
-    <!-- Score chart (full width) -->
+    <!-- Score chart (full width) — only show separately when trends exist (otherwise it's already in the meta-row above) -->
+    {% if not dashboard or dashboard.test_sparklines or dashboard.pass_trend %}
     <div class="card">
       <div class="card-title">Score per Test</div>
       <div class="chart-wrap" style="height:{{ [kpis.scores|length * 40 + 24, 120]|max }}px"><canvas id="bars"></canvas></div>
     </div>
+    {% endif %}
 
     <!-- Cost table -->
     <div class="card">
